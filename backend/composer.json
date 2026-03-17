@@ -1,0 +1,9 @@
+{
+  "name": "kursach/classifieds-backend",
+  "description": "PHP backend skeleton for classifieds",
+  "type": "project",
+  "require": {
+    "php": ">=8.1"
+  }
+}
+
