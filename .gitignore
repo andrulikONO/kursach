@@ -15,7 +15,7 @@ backend/.env
 backend/.env.*
 backend/vendor/
 
-# DB (не хранить в git)
+# DB
 db/
 
 # Logs
