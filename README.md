@@ -55,9 +55,4 @@ Vite настроен на прокси `/api` → `http://localhost:8080`.
 - `/product/:id` — карточка товара
 - `/new` — форма подачи объявления
 
-## Файлы по БД и ролям
-
-- `db/schema.sql` — создание БД: users / roles / user_roles / products / product_images
-- `db/roles_access.md` — “что доступно какой роли” (документация)
-- `backend/src/Permissions.php` — фактическая проверка разрешений в API
 
