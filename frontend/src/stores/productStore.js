@@ -37,4 +37,3 @@ export const useProductStore = defineStore('products', {
     }
   }
 })
-

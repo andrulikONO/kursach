@@ -1,24 +1,81 @@
 <template>
-  <div class="topbar">
-    <div class="container topbar__inner">
-      <RouterLink class="brand" to="/">
-        <span class="brand__dot" aria-hidden="true" />
-        <span>Объявления</span>
-      </RouterLink>
+  <div class="app">
+    <Header 
+      :is-auth="isAuth" 
+      @open-login="openLoginModal" 
+      @logout="handleLogout" 
+    />
 
-      <nav class="nav">
-        <RouterLink class="btn" to="/">Каталог</RouterLink>
-        <RouterLink class="btn btn--primary" to="/new">Подать объявление</RouterLink>
-      </nav>
-    </div>
+    <main class="container" style="padding: 18px 16px 28px">
+      <RouterView />
+    </main>
+
+    <Footer />
+
+    <LoginModal 
+      v-if="showLoginModal" 
+      @close="closeLoginModal" 
+      @open-register="openRegisterModal" 
+      @success="handleAuthSuccess" 
+    />
+
+    <RegisterModal 
+      v-if="showRegisterModal" 
+      @close="closeRegisterModal" 
+      @open-login="openLoginModal" 
+      @success="handleAuthSuccess" 
+    />
   </div>
-
-  <main class="container" style="padding: 18px 16px 28px">
-    <RouterView />
-  </main>
 </template>
 
 <script setup>
-import { RouterLink, RouterView } from 'vue-router'
+import { ref } from 'vue'
+import { RouterView } from 'vue-router'
+import Header from './components/Header.vue'
+import Footer from './components/Footer.vue'
+import LoginModal from './components/LoginModal.vue'
+import RegisterModal from './components/RegisterModal.vue'
+import { useAuth } from './composables/useAuth'
+
+const { isAuth, logout } = useAuth()
+
+const showLoginModal = ref(false)
+const showRegisterModal = ref(false)
+
+function openLoginModal() {
+  showLoginModal.value = true
+  showRegisterModal.value = false
+}
+
+function closeLoginModal() {
+  showLoginModal.value = false
+}
+
+function openRegisterModal() {
+  showRegisterModal.value = true
+  showLoginModal.value = false
+}
+
+function closeRegisterModal() {
+  showRegisterModal.value = false
+}
+
+function handleAuthSuccess() {
+  closeLoginModal()
+  closeRegisterModal()
+  window.location.reload()
+}
+
+function handleLogout() {
+  logout()
+  window.location.reload()
+}
 </script>
 
+<style scoped>
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+</style>
