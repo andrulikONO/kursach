@@ -8,12 +8,12 @@ function getAuthHeaders() {
   return demo ? { Authorization: demo } : {}
 }
 
-async function request(path, { method = 'GET', body, headers } = {}) {
+async function request(path, { method = 'GET', body, headers, skipAuth = false } = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
-      ...getAuthHeaders(),
+      ...(skipAuth ? {} : getAuthHeaders()),
       ...(headers || {})
     },
     body: body ? JSON.stringify(body) : undefined
@@ -28,8 +28,17 @@ async function request(path, { method = 'GET', body, headers } = {}) {
   }
 
   if (!res.ok) {
-    const msg = (data && data.error) || `HTTP ${res.status}`
-    throw new Error(msg)
+    let msg = (data && data.error) || `HTTP ${res.status}`
+    if (res.status === 422 && data && data.fields) {
+      msg = 'Проверьте правильность заполнения полей'
+    }
+    if (res.status === 409) {
+      msg = (data && data.error) || 'Данные уже заняты'
+    }
+    const err = new Error(msg)
+    err.status = res.status
+    err.data = data
+    throw err
   }
   return data
 }
@@ -52,5 +61,16 @@ export function fetchProductById(id) {
 export function createProduct(payload) {
   // позже сюда можно добавить Authorization header
   return request('/api/products', { method: 'POST', body: payload })
+}
+
+/** Проверка занятости логина/email (как check-availability в UserAuthApp) */
+export function checkAuthAvailability(type, value) {
+  const qs = new URLSearchParams({ type, value })
+  return request(`/api/auth/check-availability?${qs.toString()}`, { skipAuth: true })
+}
+
+/** Регистрация (без заголовка авторизации) */
+export function registerUser(payload) {
+  return request('/api/auth/register', { method: 'POST', body: payload, skipAuth: true })
 }
 

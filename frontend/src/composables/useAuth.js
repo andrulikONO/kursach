@@ -1,37 +1,36 @@
 import { ref, onMounted } from 'vue'
 
-export function useAuth() {
-  const isAuth = ref(false)
-  const user = ref(null)
+const isAuth = ref(false)
+const user = ref(null)
 
+function parseAuthData(data) {
+  const userData = {}
+  const parts = String(data).replace(/^Demo\s+/i, '').trim().split(/\s+/)
+  parts.forEach((part) => {
+    if (part.startsWith('user:')) {
+      userData.userId = parseInt(part.replace('user:', ''), 10)
+    } else if (part.startsWith('roles:')) {
+      userData.roles = part.replace('roles:', '').split(',').map((r) => r.trim()).filter(Boolean)
+    }
+  })
+  return userData
+}
+
+function checkAuth() {
+  const authData = typeof localStorage !== 'undefined' ? localStorage.getItem('demoAuth') : null
+  if (authData) {
+    isAuth.value = true
+    user.value = parseAuthData(authData)
+  } else {
+    isAuth.value = false
+    user.value = null
+  }
+}
+
+export function useAuth() {
   onMounted(() => {
     checkAuth()
   })
-
-  function checkAuth() {
-    const authData = localStorage.getItem('demoAuth')
-    if (authData) {
-      isAuth.value = true
-      user.value = parseAuthData(authData)
-    } else {
-      isAuth.value = false
-      user.value = null
-    }
-  }
-
-  function parseAuthData(data) {
-    // Парсим "Demo user:1 roles:seller,customer"
-    const parts = data.replace('Demo ', '').split(' ')
-    const userData = {}
-    parts.forEach(part => {
-      if (part.startsWith('user:')) {
-        userData.userId = parseInt(part.replace('user:', ''))
-      } else if (part.startsWith('roles:')) {
-        userData.roles = part.replace('roles:', '').split(',')
-      }
-    })
-    return userData
-  }
 
   function login(identifier, password) {
     return new Promise((resolve, reject) => {
@@ -44,11 +43,11 @@ export function useAuth() {
     })
   }
 
-  function register(data) {
-    return new Promise((resolve, reject) => {
+  /** @deprecated используйте форму регистрации с API; оставлено для совместимости */
+  function register() {
+    return new Promise((resolve) => {
       setTimeout(() => {
-        const authData = 'Demo user:1 roles:seller,customer'
-        localStorage.setItem('demoAuth', authData)
+        localStorage.setItem('demoAuth', 'Demo user:1 roles:seller,customer')
         checkAuth()
         resolve()
       }, 500)

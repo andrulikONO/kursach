@@ -3,67 +3,11 @@
     <div class="modal card">
       <div class="modal__header">
         <h2 class="title" style="margin: 0">Регистрация</h2>
-        <button class="btn btn--small" @click="$emit('close')">✕</button>
+        <button class="btn btn--small" type="button" @click="$emit('close')">✕</button>
       </div>
 
       <div class="modal__body">
-        <form @submit.prevent="submit" style="display: grid; gap: 16px">
-          <div class="row">
-            <label class="form-group">
-              <span class="muted">Имя</span>
-              <input 
-                v-model.trim="form.name" 
-                class="input" 
-                type="text" 
-                placeholder="Иван"
-                required
-              />
-            </label>
-
-            <label class="form-group">
-              <span class="muted">Фамилия</span>
-              <input 
-                v-model.trim="form.surname" 
-                class="input" 
-                type="text" 
-                placeholder="Иванов"
-                required
-              />
-            </label>
-          </div>
-
-          <label class="form-group">
-            <span class="muted">Email</span>
-            <input 
-              v-model.trim="form.email" 
-              class="input" 
-              type="email" 
-              placeholder="user@example.com"
-              required
-            />
-          </label>
-
-          <label class="form-group">
-            <span class="muted">Пароль</span>
-            <input 
-              v-model="form.password" 
-              class="input" 
-              type="password" 
-              placeholder="••••••••"
-              minlength="6"
-              required
-            />
-          </label>
-
-          <button 
-            class="btn btn--primary" 
-            type="submit" 
-            :disabled="loading"
-            style="width: 100%"
-          >
-            {{ loading ? 'Регистрация...' : 'Создать аккаунт' }}
-          </button>
-        </form>
+        <AuthRegisterForm @success="onSuccess" @error="onError" />
 
         <div v-if="error" class="danger" style="margin-top: 12px; text-align: center">
           {{ error }}
@@ -75,9 +19,7 @@
 
         <div class="modal__footer">
           <span class="muted">Уже есть аккаунт?</span>
-          <button class="btn btn--secondary" @click="$emit('open-login')">
-            Войти
-          </button>
+          <button class="btn btn--secondary" type="button" @click="$emit('open-login')">Войти</button>
         </div>
       </div>
     </div>
@@ -85,35 +27,23 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
+import AuthRegisterForm from './AuthRegisterForm.vue'
 import { useAuth } from '../composables/useAuth'
 
 const emit = defineEmits(['close', 'open-login', 'success'])
 
-const { register } = useAuth()
-
-const loading = ref(false)
+const { checkAuth } = useAuth()
 const error = ref(null)
 
-const form = reactive({
-  name: '',
-  surname: '',
-  email: '',
-  password: ''
-})
-
-async function submit() {
-  loading.value = true
+function onSuccess() {
   error.value = null
+  checkAuth()
+  emit('success')
+}
 
-  try {
-    await register(form)
-    emit('success')
-  } catch (e) {
-    error.value = e?.message || 'Ошибка регистрации'
-  } finally {
-    loading.value = false
-  }
+function onError(msg) {
+  error.value = msg
 }
 </script>
 
@@ -135,7 +65,7 @@ async function submit() {
 }
 
 .modal {
-  max-width: 500px;
+  max-width: 560px;
   width: 100%;
   background: #1a1f35;
   animation: slideUp 0.3s ease;
@@ -151,6 +81,8 @@ async function submit() {
 
 .modal__body {
   padding: 20px;
+  max-height: min(85vh, 720px);
+  overflow-y: auto;
 }
 
 .modal__divider {
@@ -179,22 +111,25 @@ async function submit() {
   font-size: 14px;
 }
 
-.form-group {
-  display: grid;
-  gap: 6px;
+.danger {
+  color: var(--danger);
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
-  from { 
+  from {
     opacity: 0;
     transform: translateY(20px);
   }
-  to { 
+  to {
     opacity: 1;
     transform: translateY(0);
   }
@@ -205,7 +140,7 @@ async function submit() {
     padding: 10px;
     align-items: flex-end;
   }
-  
+
   .modal {
     max-width: 100%;
     border-radius: 16px 16px 0 0;

@@ -4,7 +4,13 @@
 
 - `frontend/` — Vue (каталог, карточка товара, форма подачи, фильтр + “тип вещи”)
 - `backend/` — PHP (API + работа с БД через PDO)
-- `db/` — SQL схема и описание ролей
+- `db/` — SQL (в т.ч. схема пользователей для регистрации)
+
+## 0) База данных (регистрация)
+
+Выполни в MySQL скрипт **`db/schema_users_mysql.sql`** (таблицы `roles`, `users`, `user_roles`).
+
+Правила полей совпадают с **UserAuthApp** (имя/фамилия латиница 2–15, email, логин ≥6, «сильный» пароль, пол, возраст, согласие с правилами).
 
 ## 1) Backend (PHP)
 
@@ -27,6 +33,11 @@ php -S localhost:8080
 Проверка:
 - `GET /api/health`
 - `GET /api/products`
+
+### Регистрация и проверка занятости
+
+- `GET /api/auth/check-availability?type=login|email&value=...` — JSON `{ available, message }`
+- `POST /api/auth/register` — JSON-тело как на фронте (`firstName`, `lastName`, `email`, `login`, `password`, `confirmPassword`, `ageConfirmed`, `gender`, `acceptRules`). Успех: `201`, в ответе `demoAuth` для заголовка `Authorization` (режим разработки).
 
 ### Роли (важно)
 

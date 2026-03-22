@@ -7,10 +7,12 @@ require_once __DIR__ . '/../src/Db.php';
 require_once __DIR__ . '/../src/Auth.php';
 require_once __DIR__ . '/../src/Permissions.php';
 require_once __DIR__ . '/../src/ProductsController.php';
+require_once __DIR__ . '/../src/AuthController.php';
 
 use Kursach\Response;
 use Kursach\Auth;
 use Kursach\ProductsController;
+use Kursach\AuthController;
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -29,6 +31,14 @@ try {
 
   if ($path === '/api/health' && $method === 'GET') {
     Response::json(['ok' => true]);
+  }
+
+  if ($path === '/api/auth/check-availability' && $method === 'GET') {
+    AuthController::checkAvailability();
+  }
+
+  if ($path === '/api/auth/register' && $method === 'POST') {
+    AuthController::register();
   }
 
   if ($path === '/api/products' && $method === 'GET') {
