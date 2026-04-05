@@ -23,15 +23,14 @@
 import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import AuthRegisterForm from '../components/AuthRegisterForm.vue'
-import { useAuth } from '../composables/useAuth'
+import { initAuth } from '../composables/useAuth'
 
 const router = useRouter()
-const { checkAuth } = useAuth()
 const error = ref(null)
 
-function onSuccess() {
+async function onSuccess() {
   error.value = null
-  checkAuth()
+  await initAuth()
   router.push('/profile')
 }
 

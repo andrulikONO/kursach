@@ -7,6 +7,18 @@ import { checkAuthAvailability, registerUser } from '../lib/api'
  */
 const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
 
+function normalizePhone(raw) {
+  const d = String(raw || '').replace(/\D/g, '')
+  if (d.length === 11 && d[0] === '8') return '+7' + d.slice(1)
+  if (d.length === 11 && d[0] === '7') return '+' + d
+  if (d.length === 10) return '+7' + d
+  return String(raw || '').trim()
+}
+
+function isValidPhone(raw) {
+  return /^\+7\d{10}$/.test(normalizePhone(raw))
+}
+
 function checkStrongPassword(pwd) {
   const s = pwd || ''
   return (
@@ -25,6 +37,7 @@ export function useRegistrationValidation() {
     lastName: '',
     email: '',
     login: '',
+    phone: '',
     password: '',
     confirmPassword: '',
     ageConfirmed: '', // 'true' | 'false' | ''
@@ -38,6 +51,7 @@ export function useRegistrationValidation() {
     lastName: '',
     email: '',
     login: '',
+    phone: '',
     password: '',
     confirmPassword: '',
     ageConfirmed: '',
@@ -50,6 +64,7 @@ export function useRegistrationValidation() {
     lastName: false,
     email: false,
     login: false,
+    phone: false,
     password: false,
     confirmPassword: false,
     ageConfirmed: false,
@@ -57,7 +72,7 @@ export function useRegistrationValidation() {
     acceptRules: false
   })
 
-  const textFields = ['firstName', 'lastName', 'email', 'login']
+  const textFields = ['firstName', 'lastName', 'email', 'login', 'phone']
   const allFields = [...textFields, 'password', 'confirmPassword', 'ageConfirmed', 'gender', 'acceptRules']
 
   function setError(fieldId, msg) {
@@ -106,6 +121,11 @@ export function useRegistrationValidation() {
       } else if (availabilityState.login === false) {
         valid = false
         msg = 'Логин уже занят'
+      }
+    } else if (fieldId === 'phone') {
+      if (!isValidPhone(form.phone || '')) {
+        valid = false
+        msg = 'Телефон: формат +7XXXXXXXXXX'
       }
     } else if (fieldId === 'password') {
       let raw = form.password || ''
@@ -242,6 +262,7 @@ export function useRegistrationValidation() {
     textFields.forEach((id) => {
       form[id] = (form[id] || '').trim()
     })
+    form.phone = normalizePhone(String(form.phone || '').replace(/\s/g, ''))
     let ok = true
     allFields.forEach((id) => {
       const { valid } = validateField(id)
@@ -261,6 +282,7 @@ export function useRegistrationValidation() {
       lastName: form.lastName.trim(),
       email: form.email.trim(),
       login: form.login.trim(),
+      phone: normalizePhone(form.phone || ''),
       password: form.password,
       confirmPassword: form.confirmPassword,
       ageConfirmed: form.ageConfirmed === 'true',

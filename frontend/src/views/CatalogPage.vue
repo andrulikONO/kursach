@@ -54,6 +54,7 @@
               <div class="tags">
                 <span class="tag">{{ p.type || '—' }}</span>
                 <span class="tag">{{ p.city || 'Город не указан' }}</span>
+                <span v-if="p.contact_phone" class="tag">📞 {{ p.contact_phone }}</span>
               </div>
             </div>
           </RouterLink>

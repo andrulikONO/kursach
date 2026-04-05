@@ -1,56 +1,41 @@
-# Kursach: сайт объявлений (скелет)
+# Kursach: объявления (Vue + PHP + PostgreSQL)
 
-Проект разделён на две части:
+## Возможности
 
-- `frontend/` — Vue (каталог, карточка товара, форма подачи, фильтр + “тип вещи”)
-- `backend/` — PHP (API + работа с БД через PDO)
-- `db/` — SQL (в т.ч. схема пользователей для регистрации)
+- **Роли:** гость (без входа), **пользователь** (`user`), **администратор** (`admin`). Права проверяются на сервере по данным из БД.
+- **Пользователь:** каталог, карточка объявления, подача объявления; **телефон для объявления** подставляется из профиля (поле при регистрации).
+- **Администратор:** удаление объявлений (`DELETE /api/products/:id`), блокировка пользователей (блокировка запрещает создавать новые объявления), страница `/admin`.
+- **База данных:** PostgreSQL. SQL-схема: `docker/postgres/init.sql`.
 
-## 0) База данных (регистрация)
+## Запуск в Docker
 
-Выполни в MySQL скрипт **`db/schema_users_mysql.sql`** (таблицы `roles`, `users`, `user_roles`).
+Пошагово описано в **[DOCKER.md](./DOCKER.md)**.
 
-Правила полей совпадают с **UserAuthApp** (имя/фамилия латиница 2–15, email, логин ≥6, «сильный» пароль, пол, возраст, согласие с правилами).
+Кратко:
 
-## 1) Backend (PHP)
+```bash
+docker compose up -d --build
+```
 
-### Настройка
+После старта администратор создаётся автоматически: логин **`admin`**, пароль **`Admin123!`** (см. `docker-compose.yml`).
 
-1. Скопируй пример переменных окружения:
-   - `backend/.env.example` → `backend/.env`
-2. Заполни доступ к MySQL:
-   - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`
+- Сайт: http://localhost:3000  
+- API: http://localhost:8080  
 
-### Запуск
+Проверка сценариев: **[TESTING.md](./TESTING.md)**.
 
-Запуск встроенного сервера PHP:
+## Локальная разработка без Docker
+
+1. Установите PostgreSQL, выполните скрипт **`docker/postgres/init.sql`** (создаст таблицы в выбранной БД).
+2. `backend/.env.example` → `backend/.env`, укажите `DB_*`.
+3. Бэкенд:
 
 ```bash
 cd backend/public
 php -S localhost:8080
 ```
 
-Проверка:
-- `GET /api/health`
-- `GET /api/products`
-
-### Регистрация и проверка занятости
-
-- `GET /api/auth/check-availability?type=login|email&value=...` — JSON `{ available, message }`
-- `POST /api/auth/register` — JSON-тело как на фронте (`firstName`, `lastName`, `email`, `login`, `password`, `confirmPassword`, `ageConfirmed`, `gender`, `acceptRules`). Успех: `201`, в ответе `demoAuth` для заголовка `Authorization` (режим разработки).
-
-### Роли (важно)
-
-Создание объявления защищено разрешением `products.create`.
-Чтобы быстро протестировать в скелете, бэкенд понимает demo-заголовок:
-
-- `Authorization: Demo user:1 roles:seller`
-
-Фронтенд в DEV-режиме **сам добавляет** demo-заголовок (см. `frontend/src/lib/api.js`), чтобы форма подачи работала сразу.
-
-## 2) Frontend (Vue)
-
-### Установка и запуск
+4. Фронт:
 
 ```bash
 cd frontend
@@ -58,12 +43,30 @@ npm install
 npm run dev
 ```
 
-Vite настроен на прокси `/api` → `http://localhost:8080`.
+Vite проксирует `/api` на `http://localhost:8080` (см. `frontend/vite.config.js`).
 
-### Страницы
+## API (кратко)
 
-- `/` — каталог (список + фильтры)
-- `/product/:id` — карточка товара
-- `/new` — форма подачи объявления
+| Метод | Путь | Описание |
+|--------|------|----------|
+| GET | `/api/health` | Проверка |
+| GET | `/api/products` | Каталог |
+| GET | `/api/products/{id}` | Карточка |
+| POST | `/api/products` | Создать (user, не заблокирован) |
+| DELETE | `/api/products/{id}` | Удалить (admin) |
+| POST | `/api/auth/register` | Регистрация |
+| POST | `/api/auth/login` | Вход |
+| GET | `/api/me` | Профиль + роли |
+| GET | `/api/my/products` | Мои объявления |
+| GET | `/api/admin/users` | Список пользователей (admin) |
+| POST | `/api/admin/users/{id}/block` | Заблокировать (admin) |
+| POST | `/api/admin/users/{id}/unblock` | Разблокировать (admin) |
 
+Авторизация: заголовок **`Authorization: Demo user:<числовой_id>`** (строка выдаётся после логина/регистрации). Роли на сервере читаются только из БД.
 
+## Структура
+
+- `frontend/` — Vue 3 (Vite)
+- `backend/` — PHP, точка входа `public/index.php`
+- `docker/` — Dockerfile’ы, nginx, SQL для Postgres
+- `docker-compose.yml` — оркестрация

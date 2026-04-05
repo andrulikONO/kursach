@@ -29,15 +29,19 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { RouterView } from 'vue-router'
 import Header from './components/Header.vue'
 import Footer from './components/Footer.vue'
 import LoginModal from './components/LoginModal.vue'
 import RegisterModal from './components/RegisterModal.vue'
-import { useAuth } from './composables/useAuth'
+import { useAuth, initAuth } from './composables/useAuth'
 
 const { isAuth, logout } = useAuth()
+
+onMounted(() => {
+  initAuth()
+})
 
 const showLoginModal = ref(false)
 const showRegisterModal = ref(false)

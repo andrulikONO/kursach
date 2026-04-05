@@ -29,18 +29,26 @@
             <span class="tag">Город: {{ store.selected.city || '—' }}</span>
           </div>
           <div class="muted" style="white-space: pre-wrap">{{ store.selected.description || 'Описание отсутствует' }}</div>
+          <button
+            v-if="isAdmin"
+            type="button"
+            class="btn danger-outline"
+            :disabled="deleting"
+            @click="removeListing"
+          >
+            {{ deleting ? 'Удаление...' : 'Удалить объявление (админ)' }}
+          </button>
         </div>
       </section>
 
       <aside class="card">
         <div class="card__body" style="display: grid; gap: 10px">
-          <div class="title">Контакты (скелет)</div>
-          <div class="muted">Пока без личных данных — можно расширить позже.</div>
-          <div class="split">
-            <button class="btn" type="button" disabled>Показать телефон</button>
-            <button class="btn" type="button" disabled>Написать</button>
+          <div class="title">Контакты</div>
+          <div v-if="store.selected.contact_phone" class="muted">
+            Телефон: <b>{{ store.selected.contact_phone }}</b>
           </div>
-          <div class="muted" style="font-size: 13px">ID: {{ store.selected.id }}</div>
+          <div v-else class="muted">Телефон не указан</div>
+          <div class="muted" style="font-size: 13px">ID объявления: {{ store.selected.id }}</div>
         </div>
       </aside>
     </div>
@@ -48,12 +56,23 @@
 </template>
 
 <script setup>
-import { onMounted, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { ref, onMounted, watch, computed } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
 import { useProductStore } from '../stores/productStore'
+import { deleteProduct } from '../lib/api'
+import { useAuth } from '../composables/useAuth'
 
 const props = defineProps({ id: { type: String, required: true } })
 const store = useProductStore()
+const router = useRouter()
+const { refreshProfile, user } = useAuth()
+const deleting = ref(false)
+
+const isAdmin = computed(() => (user.value?.roles || []).includes('admin'))
+
+onMounted(() => {
+  refreshProfile()
+})
 
 function formatPrice(v) {
   const n = Number(v || 0)
@@ -64,7 +83,26 @@ async function load() {
   await store.loadOne(props.id)
 }
 
+async function removeListing() {
+  if (!confirm('Удалить объявление?')) return
+  deleting.value = true
+  try {
+    await deleteProduct(props.id)
+    router.push('/')
+  } catch (e) {
+    alert(e?.message || String(e))
+  } finally {
+    deleting.value = false
+  }
+}
+
 onMounted(load)
 watch(() => props.id, load)
 </script>
 
+<style scoped>
+.danger-outline {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+</style>

@@ -67,6 +67,8 @@ final class AuthController
       Response::json(['error' => 'validation', 'fields' => ['acceptRules' => 'Необходимо согласие с правилами']], 422);
     }
 
+    $phone = UserValidator::normalizePhone(trim((string)($body['phone'] ?? '')));
+
     $pdo = Db::pdo();
     try {
       if (UserRepository::isLoginTaken($pdo, $login)) {
@@ -91,10 +93,10 @@ final class AuthController
         $hash,
         $ageConfirmed,
         $gender,
-        true
+        true,
+        $phone
       );
-      UserRepository::assignRoleByCode($pdo, $id, 'customer');
-      UserRepository::assignRoleByCode($pdo, $id, 'seller');
+      UserRepository::assignRoleByCode($pdo, $id, 'user');
 
       $pdo->commit();
 
@@ -103,7 +105,7 @@ final class AuthController
         'userId' => $id,
         'login' => $login,
         'email' => $email,
-        'demoAuth' => 'Demo user:' . $id . ' roles:customer,seller',
+        'demoAuth' => 'Demo user:' . $id,
       ], 201);
     } catch (\Throwable $e) {
       if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
@@ -111,5 +113,44 @@ final class AuthController
       }
       Response::json(['error' => 'Ошибка при регистрации', 'details' => $e->getMessage()], 500);
     }
+  }
+
+  public static function login(): void
+  {
+    $body = Response::readJsonBody();
+    $identifier = trim((string)($body['identifier'] ?? $body['login'] ?? ''));
+    $password = (string)($body['password'] ?? '');
+
+    if ($identifier === '' || $password === '') {
+      Response::json(['error' => 'validation', 'fields' => ['identifier' => 'Укажите логин или email', 'password' => 'Введите пароль']], 422);
+    }
+
+    $pdo = Db::pdo();
+    $u = UserRepository::findByLoginOrEmail($pdo, $identifier);
+    if ($u === null || !password_verify($password, $u['password_hash'])) {
+      Response::json(['error' => 'Неверный логин или пароль'], 401);
+    }
+
+    Response::json([
+      'ok' => true,
+      'userId' => $u['id'],
+      'demoAuth' => 'Demo user:' . $u['id'],
+    ]);
+  }
+
+  public static function me(AuthContext $auth): void
+  {
+    if ($auth->isGuest()) {
+      Response::json(['error' => 'Unauthorized'], 401);
+    }
+    Permissions::require($auth, 'profile.read');
+
+    $pdo = Db::pdo();
+    $profile = UserRepository::getProfile($pdo, (int)$auth->userId);
+    if ($profile === null) {
+      Response::json(['error' => 'Not Found'], 404);
+    }
+
+    Response::json($profile);
   }
 }

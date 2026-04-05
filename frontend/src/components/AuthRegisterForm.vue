@@ -66,6 +66,21 @@
       <span v-if="fieldErrors.login" class="field-msg danger">{{ fieldErrors.login }}</span>
     </label>
 
+    <label class="form-group">
+      <span class="muted">Телефон (для объявлений, формат +7XXXXXXXXXX)</span>
+      <input
+        id="phone"
+        v-model="form.phone"
+        name="phone"
+        type="tel"
+        class="input"
+        :class="fieldClass('phone')"
+        autocomplete="tel"
+        placeholder="+79991234567"
+      />
+      <span v-if="fieldErrors.phone" class="field-msg danger">{{ fieldErrors.phone }}</span>
+    </label>
+
     <div class="row">
       <label class="form-group">
         <span class="muted">Пароль</span>

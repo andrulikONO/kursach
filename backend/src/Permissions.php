@@ -3,26 +3,25 @@ declare(strict_types=1);
 
 namespace Kursach;
 
+/**
+ * Роли: guest (не вошёл), user, admin (из БД).
+ * Гость не хранится в таблице roles.
+ */
 final class Permissions
 {
-  /**
-   * Матрица доступа "роль -> разрешения".
-   * Легко расширяется добавлением ролей/разрешений.
-   *
-   * Разрешения:
-   * - products.read: просмотр каталога и карточки
-   * - products.create: создание объявления
-   * - products.moderate: модерация (на будущее)
-   * - admin.all: полный доступ (на будущее)
-   */
   public static function rolePermissions(): array
   {
     return [
       'guest' => ['products.read'],
-      'customer' => ['products.read'],
-      'seller' => ['products.read', 'products.create'],
-      'moderator' => ['products.read', 'products.moderate'],
-      'admin' => ['admin.all'],
+      'user' => ['products.read', 'products.create', 'profile.read'],
+      'admin' => [
+        'products.read',
+        'products.create',
+        'profile.read',
+        'products.delete',
+        'users.block',
+        'users.list',
+      ],
     ];
   }
 
@@ -30,10 +29,11 @@ final class Permissions
   {
     $map = self::rolePermissions();
     foreach ($auth->roles as $role) {
-      $role = strtolower($role);
+      $role = strtolower((string)$role);
       $perms = $map[$role] ?? [];
-      if (in_array('admin.all', $perms, true)) return true;
-      if (in_array($permission, $perms, true)) return true;
+      if (in_array($permission, $perms, true)) {
+        return true;
+      }
     }
     return false;
   }
@@ -45,4 +45,3 @@ final class Permissions
     }
   }
 }
-

@@ -14,7 +14,10 @@ import PrivacyPage from '../views/PrivacyPage.vue'
 import TermsPage from '../views/TermsPage.vue'
 import OfferPage from '../views/OfferPage.vue'
 import SupportPage from '../views/SupportPage.vue'
-
+import LoginPage from '../views/LoginPage.vue'
+import RegisterPage from '../views/RegisterPage.vue'
+import ProfilePage from '../views/ProfilePage.vue'
+import AdminPage from '../views/AdminPage.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -27,7 +30,12 @@ export const router = createRouter({
     { path: '/product/:id', name: 'product', component: ProductPage, props: true },
     
     { path: '/new', name: 'new', component: NewListingPage },
-    
+
+    { path: '/login', name: 'login', component: LoginPage },
+    { path: '/register', name: 'register', component: RegisterPage },
+    { path: '/profile', name: 'profile', component: ProfilePage },
+    { path: '/admin', name: 'admin', component: AdminPage },
+
     { path: '/help', name: 'help', component: HelpPage },
     { path: '/help/how-to-post', name: 'how-to-post', component: HowToPostPage },
     { path: '/help/safety', name: 'safety', component: SafetyPage },

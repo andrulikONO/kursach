@@ -9,26 +9,33 @@
       <div class="modal__body">
         <form @submit.prevent="submit" style="display: grid; gap: 16px">
           <label class="form-group">
-            <span class="muted">Email или телефон</span>
-            <input 
-              v-model.trim="form.identifier" 
-              class="input" 
-              type="text" 
-              placeholder="user@example.com"
+            <span class="muted">Логин или email</span>
+            <input
+              v-model.trim="form.identifier"
+              class="input"
+              type="text"
+              placeholder="admin или user@mail.ru"
               required
+              autocomplete="username"
             />
           </label>
 
-          <label class="form-group">
+          <div class="form-group">
             <span class="muted">Пароль</span>
-            <input 
-              v-model="form.password" 
-              class="input" 
-              type="password" 
-              placeholder="••••••••"
-              required
-            />
-          </label>
+            <div class="input-row">
+              <input
+                v-model="form.password"
+                class="input"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="••••••••"
+                required
+                autocomplete="current-password"
+              />
+              <button type="button" class="btn btn--ghost" tabindex="-1" @click="showPassword = !showPassword">
+                {{ showPassword ? 'Скрыть' : 'Показать' }}
+              </button>
+            </div>
+          </div>
 
           <button 
             class="btn btn--primary" 
@@ -69,6 +76,7 @@ const { login } = useAuth()
 
 const loading = ref(false)
 const error = ref(null)
+const showPassword = ref(false)
 
 const form = reactive({
   identifier: '',
@@ -155,6 +163,24 @@ async function submit() {
 .form-group {
   display: grid;
   gap: 6px;
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.input-row .input {
+  flex: 1;
+}
+
+.btn--ghost {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 @keyframes fadeIn {

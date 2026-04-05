@@ -3,54 +3,35 @@ declare(strict_types=1);
 
 namespace Kursach;
 
-final class AuthContext
-{
-  public function __construct(
-    public readonly ?int $userId,
-    /** @var string[] */
-    public readonly array $roles
-  ) {}
-
-  public function isGuest(): bool
-  {
-    return $this->userId === null;
-  }
-}
-
+/**
+ * Клиент передаёт только идентификатор: Authorization: Demo user:123
+ * Роли и блокировка всегда читаются из БД (нельзя подделать admin в заголовке).
+ */
 final class Auth
 {
-  /**
-   * Скелет авторизации.
-   * Сейчас поддерживает два режима:
-   * - гость (нет Authorization)
-   * - "demo" через заголовок: Authorization: Demo user:2 roles:seller,customer
-   *
-   * Позже можно заменить на JWT/сессии.
-   */
   public static function fromRequest(): AuthContext
   {
     $h = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
     $h = is_string($h) ? trim($h) : '';
-    if ($h === '' || stripos($h, 'Demo ') !== 0) {
-      return new AuthContext(null, ['guest']);
+
+    if ($h === '' || !preg_match('/^Demo\s+user:(\d+)\b/i', $h, $m)) {
+      return new AuthContext(null, ['guest'], false);
     }
 
-    $payload = trim(substr($h, 5));
-    $parts = preg_split('/\s+/', $payload) ?: [];
+    $userId = (int)$m[1];
+    if ($userId <= 0) {
+      return new AuthContext(null, ['guest'], false);
+    }
 
-    $userId = null;
-    $roles = [];
-    foreach ($parts as $p) {
-      if (str_starts_with($p, 'user:')) {
-        $userId = (int)substr($p, 5);
-      } elseif (str_starts_with($p, 'roles:')) {
-        $raw = substr($p, 6);
-        $roles = array_values(array_filter(array_map('trim', explode(',', $raw))));
+    try {
+      $pdo = Db::pdo();
+      $snap = UserRepository::getAuthSnapshot($pdo, $userId);
+      if ($snap === null) {
+        return new AuthContext(null, ['guest'], false);
       }
+      return new AuthContext($userId, $snap['roles'], $snap['is_blocked']);
+    } catch (\Throwable) {
+      return new AuthContext(null, ['guest'], false);
     }
-
-    if (!$roles) $roles = ['user'];
-    return new AuthContext($userId ?: null, $roles);
   }
 }
-

@@ -2,7 +2,7 @@
   <div class="profile-page">
     <div class="profile-header">
       <h1 class="title">Личный кабинет</h1>
-      <button class="btn btn--secondary" @click="logout">Выйти</button>
+      <button class="btn btn--secondary" type="button" @click="doLogout">Выйти</button>
     </div>
 
     <div class="grid">
@@ -142,23 +142,22 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import { fetchMe, fetchMyProducts } from '../lib/api'
+import { useAuth } from '../composables/useAuth'
 
 const router = useRouter()
+const { logout } = useAuth()
 const activeTab = ref('ads')
 
-// Демо-данные (в реальном проекте — загрузка из API)
-const userAds = ref([
-  { id: 1, title: 'iPhone 13 128GB', price: 50000, type: 'Электроника', status: 'active', views: 42, created_at: '2024-01-15' },
-  { id: 2, title: 'Кроссовки Nike', price: 8000, type: 'Обувь', status: 'sold', views: 18, created_at: '2024-01-10' },
-])
+const userAds = ref([])
 
 const settings = ref({
-  name: 'Иван',
-  surname: 'Иванов',
-  email: 'ivan@example.com',
-  phone: '+7 (999) 123-45-67'
+  name: '',
+  surname: '',
+  email: '',
+  phone: ''
 })
 
 function formatPrice(v) {
@@ -174,23 +173,43 @@ function formatDate(v) {
 }
 
 function statusLabel(status) {
-  const labels = { active: 'Активно', sold: 'Продано', draft: 'Черновик' }
+  const labels = { active: 'Активно', deleted: 'Удалено', sold: 'Продано', draft: 'Черновик' }
   return labels[status] || status
 }
 
-function logout() {
-  localStorage.removeItem('demoAuth')
-  router.push('/login')
+async function loadProfile() {
+  try {
+    const me = await fetchMe()
+    settings.value = {
+      name: me.first_name || '',
+      surname: me.last_name || '',
+      email: me.email || '',
+      phone: me.phone || ''
+    }
+    const { items } = await fetchMyProducts()
+    userAds.value = items || []
+  } catch {
+    router.push('/login')
+  }
+}
+
+onMounted(() => {
+  loadProfile()
+})
+
+function doLogout() {
+  logout()
+  router.push('/')
 }
 
 function deleteAd(id) {
   if (confirm('Удалить это объявление?')) {
-    userAds.value = userAds.value.filter(ad => ad.id !== id)
+    userAds.value = userAds.value.filter((ad) => ad.id !== id)
   }
 }
 
 function saveSettings() {
-  alert('Настройки сохранены (демо)')
+  alert('Сохранение профиля в API пока не подключено. Телефон меняется только в БД.')
 }
 </script>
 

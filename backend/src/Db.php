@@ -12,15 +12,17 @@ final class Db
 
   public static function pdo(): PDO
   {
-    if (self::$pdo) return self::$pdo;
+    if (self::$pdo) {
+      return self::$pdo;
+    }
 
     $host = Env::get('DB_HOST', '127.0.0.1');
-    $port = Env::get('DB_PORT', '3306');
+    $port = Env::get('DB_PORT', '5432');
     $name = Env::get('DB_NAME', 'classifieds');
-    $user = Env::get('DB_USER', 'root');
-    $pass = Env::get('DB_PASS', '');
+    $user = Env::get('DB_USER', 'classifieds');
+    $pass = Env::get('DB_PASS', 'classifieds');
 
-    $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
+    $dsn = "pgsql:host={$host};port={$port};dbname={$name}";
 
     try {
       self::$pdo = new PDO($dsn, $user, $pass, [
@@ -33,4 +35,3 @@ final class Db
     }
   }
 }
-

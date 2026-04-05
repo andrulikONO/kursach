@@ -25,6 +25,7 @@
         <RouterLink class="btn btn--primary" to="/new">Подать объявление</RouterLink>
         
         <template v-if="isAuth">
+          <RouterLink v-if="isAdminUser" class="btn" to="/admin">Админ</RouterLink>
           <RouterLink class="btn" to="/profile">Профиль</RouterLink>
           <button class="btn" @click="$emit('logout')">Выйти</button>
         </template>
@@ -35,14 +36,19 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import CategoriesDropdown from './CategoriesDropdown.vue'
+import { useAuth } from '../composables/useAuth'
 
 defineProps({
   isAuth: { type: Boolean, default: false }
 })
 
 defineEmits(['open-login', 'logout'])
+
+const { user } = useAuth()
+const isAdminUser = computed(() => (user.value?.roles || []).includes('admin'))
 </script>
 
 <style scoped>

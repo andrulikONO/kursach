@@ -37,6 +37,7 @@ final class UserValidator
     $ageConfirmed = $body['ageConfirmed'] ?? null;
     $gender = isset($body['gender']) ? (string)$body['gender'] : '';
     $acceptRules = $body['acceptRules'] ?? null;
+    $phone = isset($body['phone']) ? trim((string)$body['phone']) : '';
 
     if ($firstName === '' || !preg_match('/^[A-Za-z-]{2,15}$/', $firstName)) {
       $errors['firstName'] = 'Имя: от 2 до 15 символов, только латинские буквы и дефис';
@@ -77,6 +78,32 @@ final class UserValidator
       $errors['acceptRules'] = 'Необходимо согласие с правилами';
     }
 
+    if ($phone === '' || !self::isValidPhone($phone)) {
+      $errors['phone'] = 'Телефон: формат +7XXXXXXXXXX (10 цифр после +7)';
+    }
+
     return $errors;
+  }
+
+  /** Нормализует к виду +7XXXXXXXXXX */
+  public static function normalizePhone(string $raw): string
+  {
+    $d = preg_replace('/\D+/', '', $raw);
+    if (str_starts_with($d, '8') && strlen($d) === 11) {
+      $d = '7' . substr($d, 1);
+    }
+    if (str_starts_with($d, '7') && strlen($d) === 11) {
+      return '+' . $d;
+    }
+    if (strlen($d) === 10) {
+      return '+7' . $d;
+    }
+    return trim($raw);
+  }
+
+  public static function isValidPhone(string $raw): bool
+  {
+    $n = self::normalizePhone($raw);
+    return (bool)preg_match('/^\+7\d{10}$/', $n);
   }
 }

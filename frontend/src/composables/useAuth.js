@@ -1,62 +1,82 @@
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { fetchMe, loginUser } from '../lib/api'
 
 const isAuth = ref(false)
 const user = ref(null)
 
-function parseAuthData(data) {
-  const userData = {}
-  const parts = String(data).replace(/^Demo\s+/i, '').trim().split(/\s+/)
-  parts.forEach((part) => {
-    if (part.startsWith('user:')) {
-      userData.userId = parseInt(part.replace('user:', ''), 10)
-    } else if (part.startsWith('roles:')) {
-      userData.roles = part.replace('roles:', '').split(',').map((r) => r.trim()).filter(Boolean)
-    }
-  })
-  return userData
+function parseUserIdFromToken(data) {
+  const m = String(data || '').match(/user:(\d+)/i)
+  return m ? parseInt(m[1], 10) : null
 }
 
 function checkAuth() {
-  const authData = typeof localStorage !== 'undefined' ? localStorage.getItem('demoAuth') : null
-  if (authData) {
-    isAuth.value = true
-    user.value = parseAuthData(authData)
-  } else {
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('demoAuth') : null
+  if (!token) {
     isAuth.value = false
     user.value = null
+    return
+  }
+  isAuth.value = true
+  if (!user.value?.roles?.length) {
+    user.value = { userId: parseUserIdFromToken(token), roles: [] }
+  }
+}
+
+async function refreshProfile() {
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('demoAuth') : null
+  if (!token) {
+    user.value = null
+    return null
+  }
+  try {
+    const me = await fetchMe()
+    user.value = {
+      userId: me.id,
+      login: me.login,
+      email: me.email,
+      phone: me.phone,
+      firstName: me.first_name,
+      lastName: me.last_name,
+      roles: Array.isArray(me.roles) ? me.roles : [],
+      isBlocked: !!me.is_blocked
+    }
+    return user.value
+  } catch {
+    user.value = { userId: parseUserIdFromToken(token), roles: [] }
+    return user.value
+  }
+}
+
+/** Вызови один раз из App.vue (onMounted) */
+export async function initAuth() {
+  checkAuth()
+  if (isAuth.value) {
+    await refreshProfile()
   }
 }
 
 export function useAuth() {
-  onMounted(() => {
-    checkAuth()
-  })
-
-  function login(identifier, password) {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        const authData = 'Demo user:1 roles:seller,customer'
-        localStorage.setItem('demoAuth', authData)
-        checkAuth()
-        resolve()
-      }, 500)
-    })
+  async function login(identifier, password) {
+    const r = await loginUser({ identifier, password })
+    if (r?.demoAuth) {
+      localStorage.setItem('demoAuth', r.demoAuth)
+    }
+    isAuth.value = true
+    await refreshProfile()
   }
 
-  /** @deprecated используйте форму регистрации с API; оставлено для совместимости */
   function register() {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        localStorage.setItem('demoAuth', 'Demo user:1 roles:seller,customer')
-        checkAuth()
-        resolve()
-      }, 500)
-    })
+    return Promise.resolve()
   }
 
   function logout() {
     localStorage.removeItem('demoAuth')
-    checkAuth()
+    isAuth.value = false
+    user.value = null
+  }
+
+  function isAdmin() {
+    return (user.value?.roles || []).includes('admin')
   }
 
   return {
@@ -65,6 +85,8 @@ export function useAuth() {
     login,
     register,
     logout,
-    checkAuth
+    checkAuth,
+    refreshProfile,
+    isAdmin
   }
 }

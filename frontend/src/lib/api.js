@@ -1,11 +1,8 @@
 const API_BASE = ''
 
 function getAuthHeaders() {
-  // DEV-режим: чтобы форма "подача объявления" сразу работала с ролевой моделью на бэкенде
-  // Можно переопределить через localStorage: demoAuth = "Demo user:2 roles:seller"
-  const fromStorage = typeof localStorage !== 'undefined' ? localStorage.getItem('demoAuth') : null
-  const demo = fromStorage || (import.meta?.env?.DEV ? 'Demo user:1 roles:seller' : null)
-  return demo ? { Authorization: demo } : {}
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('demoAuth') : null
+  return token ? { Authorization: token } : {}
 }
 
 async function request(path, { method = 'GET', body, headers, skipAuth = false } = {}) {
@@ -59,18 +56,42 @@ export function fetchProductById(id) {
 }
 
 export function createProduct(payload) {
-  // позже сюда можно добавить Authorization header
   return request('/api/products', { method: 'POST', body: payload })
 }
 
-/** Проверка занятости логина/email (как check-availability в UserAuthApp) */
+export function deleteProduct(id) {
+  return request(`/api/products/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+export function fetchMe() {
+  return request('/api/me')
+}
+
+export function fetchMyProducts() {
+  return request('/api/my/products')
+}
+
+export function loginUser(payload) {
+  return request('/api/auth/login', { method: 'POST', body: payload, skipAuth: true })
+}
+
 export function checkAuthAvailability(type, value) {
   const qs = new URLSearchParams({ type, value })
   return request(`/api/auth/check-availability?${qs.toString()}`, { skipAuth: true })
 }
 
-/** Регистрация (без заголовка авторизации) */
 export function registerUser(payload) {
   return request('/api/auth/register', { method: 'POST', body: payload, skipAuth: true })
 }
 
+export function fetchAdminUsers() {
+  return request('/api/admin/users')
+}
+
+export function adminBlockUser(userId) {
+  return request(`/api/admin/users/${encodeURIComponent(userId)}/block`, { method: 'POST' })
+}
+
+export function adminUnblockUser(userId) {
+  return request(`/api/admin/users/${encodeURIComponent(userId)}/unblock`, { method: 'POST' })
+}
