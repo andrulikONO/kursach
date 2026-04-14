@@ -18,6 +18,8 @@ import LoginPage from '../views/LoginPage.vue'
 import RegisterPage from '../views/RegisterPage.vue'
 import ProfilePage from '../views/ProfilePage.vue'
 import AdminPage from '../views/AdminPage.vue'
+import TicketsPage from '../views/TicketsPage.vue'
+
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -34,13 +36,15 @@ export const router = createRouter({
     { path: '/login', name: 'login', component: LoginPage },
     { path: '/register', name: 'register', component: RegisterPage },
     { path: '/profile', name: 'profile', component: ProfilePage },
-    { path: '/admin', name: 'admin', component: AdminPage },
+    { path: '/admin', name: 'admin', component: AdminPage, meta: { requiresAdmin: true } },
 
     { path: '/help', name: 'help', component: HelpPage },
     { path: '/help/how-to-post', name: 'how-to-post', component: HowToPostPage },
     { path: '/help/safety', name: 'safety', component: SafetyPage },
     { path: '/help/contacts', name: 'contacts', component: ContactsPage },
     { path: '/support', name: 'support', component: SupportPage },
+
+    { path: '/tickets', name: 'tickets', component: TicketsPage, meta: { requiresSupport: true } },
 
     { path: '/ads', name: 'ads', component: AdsPage },
     { path: '/security', name: 'security', component: SecurityPage },
@@ -55,4 +59,30 @@ export const router = createRouter({
   scrollBehavior(to, from, savedPosition) {
     return savedPosition || { top: 0 }
   }
+})
+
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('demoAuth')
+  const isAuth = !!token
+  
+  if (to.meta.requiresAuth && !isAuth) {
+    next({ path: '/login', query: { redirect: to.fullPath } })
+    return
+  }
+  
+  if (to.path === '/login' && isAuth) {
+    const redirect = to.query.redirect || '/profile'
+    next({ path: redirect })
+    return
+  }
+  
+  if (to.meta.requiresAdmin) {
+    const userData = JSON.parse(localStorage.getItem('userProfile') || '{}')
+    if (!userData.roles?.includes('admin')) {
+      next({ path: '/', query: { error: 'access_denied' } })
+      return
+    }
+  }
+  
+  next()
 })

@@ -12,16 +12,19 @@ require_once __DIR__ . '/../src/Permissions.php';
 require_once __DIR__ . '/../src/ProductsController.php';
 require_once __DIR__ . '/../src/AuthController.php';
 require_once __DIR__ . '/../src/AdminController.php';
+require_once __DIR__ . '/../src/TicketsController.php';
 
 use Kursach\Response;
 use Kursach\Auth;
 use Kursach\ProductsController;
 use Kursach\AuthController;
 use Kursach\AdminController;
+use Kursach\TicketsController;
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   http_response_code(204);
   exit;
@@ -74,19 +77,47 @@ try {
     ProductsController::delete($auth, (int)$m[1]);
   }
 
+  if ($path === '/api/tickets' && $method === 'GET') {
+    TicketsController::list($auth);
+  }
+
+  if ($path === '/api/tickets' && $method === 'POST') {
+    TicketsController::create($auth);
+  }
+
+  if (preg_match('#^/api/tickets/(\d+)$#', $path, $m) && $method === 'GET') {
+    TicketsController::getOne($auth, (int)$m[1]);
+  }
+
+  if (preg_match('#^/api/tickets/(\d+)/respond$#', $path, $m) && $method === 'POST') {
+    TicketsController::respond($auth, (int)$m[1]);
+  }
+
+  if (preg_match('#^/api/tickets/(\d+)/assign$#', $path, $m) && $method === 'POST') {
+    TicketsController::assign($auth, (int)$m[1]);
+  }
+
   if ($path === '/api/admin/users' && $method === 'GET') {
-    AdminController::listUsers($auth);
+      AdminController::listUsers($auth);
   }
-
   if (preg_match('#^/api/admin/users/(\d+)/block$#', $path, $m) && $method === 'POST') {
-    AdminController::blockUser($auth, (int)$m[1]);
+      AdminController::blockUser($auth, (int)$m[1]);
   }
-
   if (preg_match('#^/api/admin/users/(\d+)/unblock$#', $path, $m) && $method === 'POST') {
-    AdminController::unblockUser($auth, (int)$m[1]);
+      AdminController::unblockUser($auth, (int)$m[1]);
+  }
+  if ($path === '/api/admin/roles' && $method === 'GET') {
+      AdminController::listRoles($auth);
+  }
+  if (preg_match('#^/api/admin/users/(\d+)/roles$#', $path, $m) && $method === 'POST') {
+      AdminController::assignRole($auth, (int)$m[1]);
+  }
+  if (preg_match('#^/api/admin/users/(\d+)/roles/([a-z_]+)$#', $path, $m) && $method === 'DELETE') {
+       AdminController::removeRole($auth, (int)$m[1], $m[2]);
   }
 
   Response::json(['error' => 'Not Found'], 404);
+
 } catch (Throwable $e) {
   Response::json([
     'error' => 'Server error',

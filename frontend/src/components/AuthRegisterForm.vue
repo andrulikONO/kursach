@@ -121,20 +121,17 @@
     </div>
 
     <label class="form-group">
-      <span class="muted">Возраст</span>
-      <select
-        id="ageConfirmed"
-        v-model="form.ageConfirmed"
-        name="ageConfirmed"
-        class="input select-like"
-        :class="fieldClass('ageConfirmed')"
-        @change="touchField('ageConfirmed')"
-      >
-        <option value="">Выберите...</option>
-        <option value="true">Мне есть 18 лет</option>
-        <option value="false">Нет 18 лет</option>
-      </select>
-      <span v-if="fieldErrors.ageConfirmed" class="field-msg danger">{{ fieldErrors.ageConfirmed }}</span>
+      <label class="checkbox-label" style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer">
+            <input 
+              type="checkbox" 
+              v-model="form.ageConfirmed" 
+              style="margin-top: 3px; width: 18px; height: 18px; cursor: pointer"
+              required
+            />
+            <span class="muted" style="font-size: 14px; line-height: 1.4">
+              Мне есть 18 лет
+            </span>
+          </label>
     </label>
 
     <div class="form-group">

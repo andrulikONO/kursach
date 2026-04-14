@@ -63,6 +63,22 @@ export function deleteProduct(id) {
   return request(`/api/products/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
+export function fetchTickets() {
+  return request('/api/tickets')
+}
+
+export function createTicket(payload) {
+  return request('/api/tickets', { method: 'POST', body: payload })
+}
+
+export function fetchTicketById(id) {
+  return request(`/api/tickets/${id}`)
+}
+
+export function respondToTicket(id, payload) {
+  return request(`/api/tickets/${id}/respond`, { method: 'POST', body: payload })
+}
+
 export function fetchMe() {
   return request('/api/me')
 }
@@ -82,6 +98,36 @@ export function checkAuthAvailability(type, value) {
 
 export function registerUser(payload) {
   return request('/api/auth/register', { method: 'POST', body: payload, skipAuth: true })
+}
+
+export function fetchAdminRoles() {
+  return request('/api/admin/roles')
+}
+
+export function adminAssignRole(userId, roleCode) {
+  return request(`/api/admin/users/${userId}/roles`, {
+    method: 'POST',
+    body: { roleCode }
+  })
+}
+
+export function adminRemoveRole(userId, roleCode) {
+  return request(`/api/admin/users/${userId}/roles/${roleCode}`, {
+    method: 'DELETE'
+  })
+}
+
+export function assignUserRole(userId, roleCode) {
+  return request(`/api/admin/users/${userId}/roles`, {
+    method: 'POST',
+    body: { roleCode }
+  })
+}
+
+export function removeUserRole(userId, roleCode) {
+  return request(`/api/admin/users/${userId}/roles/${roleCode}`, {
+    method: 'DELETE'
+  })
 }
 
 export function fetchAdminUsers() {

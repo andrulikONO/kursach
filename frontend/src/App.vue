@@ -1,7 +1,9 @@
 <template>
   <div class="app">
+    <!-- Передаем user в Header для отображения логина и роли -->
     <Header 
       :is-auth="isAuth" 
+      :user="user"
       @open-login="openLoginModal" 
       @logout="handleLogout" 
     />
@@ -37,7 +39,8 @@ import LoginModal from './components/LoginModal.vue'
 import RegisterModal from './components/RegisterModal.vue'
 import { useAuth, initAuth } from './composables/useAuth'
 
-const { isAuth, logout } = useAuth()
+const { isAuth, user, logout } = useAuth()
+
 
 onMounted(() => {
   initAuth()
@@ -53,6 +56,9 @@ function openLoginModal() {
 
 function closeLoginModal() {
   showLoginModal.value = false
+  if (route.query.login) {
+    router.replace({ query: { ...route.query, login: undefined } })
+  }
 }
 
 function openRegisterModal() {
@@ -67,7 +73,7 @@ function closeRegisterModal() {
 function handleAuthSuccess() {
   closeLoginModal()
   closeRegisterModal()
-  window.location.reload()
+  initAuth()
 }
 
 function handleLogout() {
