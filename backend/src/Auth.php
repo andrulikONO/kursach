@@ -9,10 +9,41 @@ namespace Kursach;
  */
 final class Auth
 {
+  private static function readAuthorizationHeader(): string
+  {
+    $candidates = [
+      $_SERVER['HTTP_AUTHORIZATION'] ?? null,
+      $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? null,
+      $_SERVER['Authorization'] ?? null,
+    ];
+
+    foreach ($candidates as $value) {
+      if (is_string($value) && trim($value) !== '') {
+        return trim($value);
+      }
+    }
+
+    if (function_exists('getallheaders')) {
+      try {
+        $headers = getallheaders();
+        if (is_array($headers)) {
+          foreach ($headers as $key => $value) {
+            if (strcasecmp((string)$key, 'Authorization') === 0 && is_string($value) && trim($value) !== '') {
+              return trim($value);
+            }
+          }
+        }
+      } catch (\Throwable) {
+        // Игнорируем и обрабатываем как гостя ниже.
+      }
+    }
+
+    return '';
+  }
+
   public static function fromRequest(): AuthContext
   {
-    $h = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-    $h = is_string($h) ? trim($h) : '';
+    $h = self::readAuthorizationHeader();
 
     if ($h === '' || !preg_match('/^Demo\s+user:(\d+)\b/i', $h, $m)) {
       return new AuthContext(null, ['guest'], false);
