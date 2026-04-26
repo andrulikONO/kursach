@@ -5,96 +5,74 @@
       <button class="btn btn--secondary" type="button" @click="doLogout">Выйти</button>
     </div>
 
-    <RouterLink 
-      v-if="isAdmin" 
-      to="/admin" 
-      class="btn btn--primary" 
+    <RouterLink
+      v-if="isAdmin"
+      to="/admin"
+      class="btn btn--primary"
       style="margin-bottom: 20px; display: inline-flex"
     >
-      🛡️ Админ-панель
+      Панель админа
     </RouterLink>
 
     <div class="grid">
-      <!-- Боковое меню -->
       <aside class="sidebar card">
         <nav class="profile-nav">
-          <button 
-            class="nav-item" 
-            :class="{ active: activeTab === 'about' }"
-            @click="activeTab = 'about'"
-          >
-            👤 Обо мне
+          <button class="nav-item" :class="{ active: activeTab === 'about' }" @click="activeTab = 'about'">
+            Обо мне
           </button>
-          <button 
-            class="nav-item" 
-            :class="{ active: activeTab === 'ads' }"
-            @click="activeTab = 'ads'"
-          >
-            📦 Мои объявления
+          <button class="nav-item" :class="{ active: activeTab === 'ads' }" @click="activeTab = 'ads'">
+            Мои объявления
           </button>
-          <button 
-            class="nav-item" 
-            :class="{ active: activeTab === 'favorites' }"
-            @click="activeTab = 'favorites'"
-          >
-            ❤️ Избранное
+          <button class="nav-item" :class="{ active: activeTab === 'favorites' }" @click="activeTab = 'favorites'">
+            Избранное
           </button>
         </nav>
       </aside>
 
-      <!-- Контент вкладки -->
       <main class="content">
-        <!-- ✅ Обо мне -->
         <div v-if="activeTab === 'about'" class="tab-content">
           <h2 class="title" style="margin: 0 0 16px 0">Информация о профиле</h2>
-          
+
           <div v-if="loading" class="card">
             <div class="card__body" style="text-align: center; padding: 40px">
               <div class="muted">Загрузка...</div>
             </div>
           </div>
-          
+
           <div v-else-if="profile" class="card">
             <div class="card__body" style="display: grid; gap: 16px">
               <div class="profile-row">
                 <span class="muted" style="min-width: 120px">Логин:</span>
                 <strong>{{ profile.login }}</strong>
               </div>
-              
+
               <div class="profile-row">
                 <span class="muted" style="min-width: 120px">ФИО:</span>
                 <span>{{ profile.first_name }} {{ profile.last_name }}</span>
               </div>
-              
+
               <div class="profile-row">
                 <span class="muted" style="min-width: 120px">Email:</span>
                 <span>{{ profile.email }}</span>
               </div>
-              
+
               <div class="profile-row">
                 <span class="muted" style="min-width: 120px">Телефон:</span>
                 <span>{{ profile.phone }}</span>
               </div>
-              
+
               <div class="profile-row">
                 <span class="muted" style="min-width: 120px">Пол:</span>
                 <span>{{ profile.gender === 'MALE' ? 'Мужской' : 'Женский' }}</span>
               </div>
-              
+
               <div class="profile-row">
-                <span class="muted" style="min-width: 120px">Роли:</span>
-                <div class="roles-list">
-                  <span 
-                    v-for="role in profile.roles" 
-                    :key="role"
-                    class="role-badge"
-                    :class="`role--${role}`"
-                  >
-                    {{ getRoleLabel(role) }}
-                  </span>
-                </div>
+                <span class="muted" style="min-width: 120px">Роль:</span>
+                <span class="role-badge" :class="`role--${profile.primaryRole}`">
+                  {{ profile.primaryRoleLabel }}
+                </span>
               </div>
-              
+
               <div class="profile-row">
                 <span class="muted" style="min-width: 120px">Аккаунт создан:</span>
                 <span>{{ formatDate(profile.created_at) }}</span>
@@ -103,7 +81,6 @@
           </div>
         </div>
 
-        <!-- Мои объявления -->
         <div v-if="activeTab === 'ads'" class="tab-content">
           <div class="split" style="margin-bottom: 16px">
             <h2 class="title" style="margin: 0">Мои объявления</h2>
@@ -137,12 +114,11 @@
           </div>
         </div>
 
-        <!-- Избранное -->
         <div v-if="activeTab === 'favorites'" class="tab-content">
           <h2 class="title" style="margin: 0 0 16px 0">Избранное</h2>
           <div class="card">
             <div class="card__body" style="text-align: center; padding: 40px">
-              <div style="font-size: 48px; margin-bottom: 16px">❤️</div>
+              <div style="font-size: 48px; margin-bottom: 16px">❤</div>
               <p class="muted">Список избранного пуст</p>
               <RouterLink to="/" class="btn btn--primary" style="margin-top: 16px">
                 Перейти в каталог
@@ -156,25 +132,29 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { fetchMe, fetchMyProducts } from '../lib/api'
 import { useAuth } from '../composables/useAuth'
+import { getPrimaryRole, getRoleLabel, sortRoles } from '../lib/roles'
 
 const router = useRouter()
-const { logout, user } = useAuth()
+const { logout, user, refreshProfile } = useAuth()
 const activeTab = ref('about')
 const loading = ref(false)
 const profile = ref(null)
 const userAds = ref([])
 
-const isAdmin = computed(() => (user.value?.roles || []).includes('admin'))
+const isAdmin = computed(() => {
+  const roles = profile.value?.roles || user.value?.roles || []
+  return roles.includes('admin')
+})
 
 function formatPrice(v) {
-  return new Intl.NumberFormat('ru-RU', { 
-    style: 'currency', 
-    currency: 'RUB', 
-    maximumFractionDigits: 0 
+  return new Intl.NumberFormat('ru-RU', {
+    style: 'currency',
+    currency: 'RUB',
+    maximumFractionDigits: 0
   }).format(Number(v || 0))
 }
 
@@ -192,18 +172,25 @@ function statusLabel(status) {
   return labels[status] || status
 }
 
-function getRoleLabel(code) {
-  const map = { user: 'Пользователь', admin: 'Админ', support: 'Поддержка', moderator: 'Модератор' }
-  return map[code] || code
-}
-
 async function loadProfile() {
   loading.value = true
   try {
-    const me = await fetchMe()
-    profile.value = me
-    const { items } = await fetchMyProducts()
-    userAds.value = items || []
+    const [me, authProfile, myProducts] = await Promise.all([
+      fetchMe(),
+      refreshProfile(),
+      fetchMyProducts()
+    ])
+
+    const roles = sortRoles(me.roles || authProfile?.roles || [])
+    const primaryRole = getPrimaryRole(roles)
+
+    profile.value = {
+      ...me,
+      roles,
+      primaryRole,
+      primaryRoleLabel: getRoleLabel(primaryRole)
+    }
+    userAds.value = myProducts.items || []
   } catch {
     router.push('/login')
   } finally {
@@ -291,12 +278,6 @@ function doLogout() {
   border-bottom: none;
 }
 
-.roles-list {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
 .role-badge {
   padding: 3px 10px;
   border-radius: 999px;
@@ -308,6 +289,7 @@ function doLogout() {
 .role--user { background: rgba(124, 92, 255, 0.2); color: var(--primary-2); }
 .role--admin { background: rgba(255, 77, 109, 0.2); color: var(--danger); }
 .role--support { background: rgba(255, 152, 0, 0.2); color: #ff9800; }
+.role--moderator { background: rgba(0, 188, 212, 0.2); color: #00bcd4; }
 
 .list {
   display: grid;

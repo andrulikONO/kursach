@@ -40,9 +40,16 @@ final class UserRepository
     $blocked = self::boolish($row['is_blocked']);
 
     $st2 = $pdo->prepare(
-      'SELECT r.code FROM user_roles ur
+      "SELECT r.code FROM user_roles ur
        INNER JOIN roles r ON r.id = ur.role_id
-       WHERE ur.user_id = :id'
+       WHERE ur.user_id = :id
+       ORDER BY CASE r.code
+         WHEN 'admin' THEN 1
+         WHEN 'support' THEN 2
+         WHEN 'moderator' THEN 3
+         WHEN 'user' THEN 4
+         ELSE 100
+       END, r.code"
     );
     $st2->execute([':id' => $userId]);
     $codes = $st2->fetchAll(PDO::FETCH_COLUMN);
@@ -169,7 +176,16 @@ final class UserRepository
   public static function listUsers(PDO $pdo): array
   {
     $sql = "SELECT u.id, u.login, u.email, u.phone, u.is_blocked, u.created_at,
-            COALESCE(string_agg(r.code, ',' ORDER BY r.code), '') AS role_codes
+            COALESCE(string_agg(
+              r.code,
+              ',' ORDER BY CASE r.code
+                WHEN 'admin' THEN 1
+                WHEN 'support' THEN 2
+                WHEN 'moderator' THEN 3
+                WHEN 'user' THEN 4
+                ELSE 100
+              END, r.code
+            ), '') AS role_codes
             FROM users u
             LEFT JOIN user_roles ur ON ur.user_id = u.id
             LEFT JOIN roles r ON r.id = ur.role_id

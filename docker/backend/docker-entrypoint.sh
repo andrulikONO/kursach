@@ -30,7 +30,10 @@ if [ "$i" -eq 90 ]; then
   exit 1
 fi
 
-echo "Создание/обновление учётной записи администратора..."
+echo "Создание/обновление учетной записи администратора..."
 php /var/www/html/scripts/seed_admin.php
+
+echo "Применение миграций..."
+php /var/www/html/scripts/migrate.php
 
 exec "$@"

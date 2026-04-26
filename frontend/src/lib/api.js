@@ -44,6 +44,8 @@ export function fetchProducts(params) {
   const qs = new URLSearchParams()
   if (params?.q) qs.set('q', params.q)
   if (params?.type) qs.set('type', params.type)
+  if (params?.category) qs.set('category', params.category)
+  if (params?.listingKind) qs.set('listingKind', params.listingKind)
   if (params?.minPrice != null && params.minPrice !== '') qs.set('minPrice', params.minPrice)
   if (params?.maxPrice != null && params.maxPrice !== '') qs.set('maxPrice', params.maxPrice)
 
@@ -61,6 +63,18 @@ export function createProduct(payload) {
 
 export function deleteProduct(id) {
   return request(`/api/products/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+export function fetchProductPhone(id) {
+  return request(`/api/products/${encodeURIComponent(id)}/phone`)
+}
+
+export function fetchProductComments(id) {
+  return request(`/api/products/${encodeURIComponent(id)}/comments`)
+}
+
+export function createProductComment(id, payload) {
+  return request(`/api/products/${encodeURIComponent(id)}/comments`, { method: 'POST', body: payload })
 }
 
 export function fetchTickets() {

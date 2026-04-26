@@ -3,7 +3,7 @@
     <div class="split">
       <div>
         <div class="title" style="font-size: 22px">Подача объявления</div>
-        <div class="muted">Телефон для связи подставляется из вашего профиля</div>
+        <div class="muted">Телефон для связи подтягивается из профиля и будет скрыт до нажатия кнопки в карточке</div>
       </div>
       <RouterLink class="btn" to="/">Каталог</RouterLink>
     </div>
@@ -26,7 +26,7 @@
         <div class="row">
           <label style="display: grid; gap: 6px">
             <span class="muted">Заголовок</span>
-            <input v-model.trim="form.title" class="input" required placeholder="Например: iPhone 13 128GB" />
+            <input v-model.trim="form.title" class="input" required placeholder="Например: Куплю iPhone 13 или продам диван" />
           </label>
 
           <label style="display: grid; gap: 6px">
@@ -36,22 +36,30 @@
         </div>
 
         <div class="row">
-          <TypeSelect v-model="form.type" label="Тип вещи" :types="types" />
+          <CategorySelect
+            v-model="form.categorySlug"
+            :include-all="false"
+            empty-label="Выберите категорию"
+          />
+          <ListingKindSelect
+            v-model="form.listingKind"
+            :include-all="false"
+            empty-label="Выберите тип"
+          />
+        </div>
+
+        <div class="row">
+          <CitySelect v-model="form.city" empty-label="Все города" />
+
           <label style="display: grid; gap: 6px">
-            <span class="muted">Город</span>
-            <input v-model.trim="form.city" class="input" placeholder="Москва" />
+            <span class="muted">Телефон в объявлении</span>
+            <input class="input" type="text" readonly :value="user?.phone || '—'" />
           </label>
         </div>
 
         <label style="display: grid; gap: 6px">
-          <span class="muted">Телефон в объявлении</span>
-          <input class="input" type="text" readonly :value="user?.phone || '—'" />
-          <span class="muted" style="font-size: 12px">Указывается при регистрации; в форме не редактируется</span>
-        </label>
-
-        <label style="display: grid; gap: 6px">
           <span class="muted">Описание</span>
-          <textarea v-model.trim="form.description" class="textarea" placeholder="Состояние, комплектация, причина продажи..." />
+          <textarea v-model.trim="form.description" class="textarea" placeholder="Состояние, детали, условия сделки, что именно ищете или продаете..." />
         </label>
 
         <div class="split">
@@ -73,20 +81,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import TypeSelect from '../components/TypeSelect.vue'
+import CategorySelect from '../components/CategorySelect.vue'
+import CitySelect from '../components/CitySelect.vue'
+import ListingKindSelect from '../components/ListingKindSelect.vue'
 import { createProduct } from '../lib/api'
 import { useAuth } from '../composables/useAuth'
 
 const { isAuth, user, refreshProfile } = useAuth()
 
-const types = ['Одежда', 'Обувь', 'Электроника', 'Дом']
-
 const form = ref({
   title: '',
   price: '',
-  type: '',
+  categorySlug: '',
+  listingKind: 'sale',
   city: '',
   description: ''
 })
@@ -109,13 +118,21 @@ async function submit() {
     const payload = {
       title: form.value.title,
       price: Number(form.value.price),
-      type: form.value.type || null,
+      categorySlug: form.value.categorySlug,
+      listingKind: form.value.listingKind || 'sale',
       city: form.value.city || null,
       description: form.value.description || null
     }
     const created = await createProduct(payload)
     success.value = created
-    form.value = { title: '', price: '', type: '', city: '', description: '' }
+    form.value = {
+      title: '',
+      price: '',
+      categorySlug: '',
+      listingKind: 'sale',
+      city: '',
+      description: ''
+    }
   } catch (e) {
     error.value = e?.message || String(e)
   } finally {

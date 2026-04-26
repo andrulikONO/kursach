@@ -9,6 +9,7 @@ require_once __DIR__ . '/../src/UserRepository.php';
 require_once __DIR__ . '/../src/AuthContext.php';
 require_once __DIR__ . '/../src/Auth.php';
 require_once __DIR__ . '/../src/Permissions.php';
+require_once __DIR__ . '/../src/ProductCatalog.php';
 require_once __DIR__ . '/../src/ProductsController.php';
 require_once __DIR__ . '/../src/AuthController.php';
 require_once __DIR__ . '/../src/AdminController.php';
@@ -67,6 +68,18 @@ try {
 
   if (preg_match('#^/api/products/(\d+)$#', $path, $m) && $method === 'GET') {
     ProductsController::getOne($auth, (int)$m[1]);
+  }
+
+  if (preg_match('#^/api/products/(\d+)/phone$#', $path, $m) && $method === 'GET') {
+    ProductsController::getPhone($auth, (int)$m[1]);
+  }
+
+  if (preg_match('#^/api/products/(\d+)/comments$#', $path, $m) && $method === 'GET') {
+    ProductsController::listComments($auth, (int)$m[1]);
+  }
+
+  if (preg_match('#^/api/products/(\d+)/comments$#', $path, $m) && $method === 'POST') {
+    ProductsController::createComment($auth, (int)$m[1]);
   }
 
   if ($path === '/api/products' && $method === 'POST') {

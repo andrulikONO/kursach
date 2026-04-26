@@ -1,12 +1,12 @@
 <template>
   <div class="categories-dropdown" v-click-outside="close">
-    <button 
-      class="btn btn--catalog" 
+    <button
+      class="btn btn--catalog"
       @click="toggle"
       :class="{ active: isOpen }"
     >
       <span>Каталог</span>
-      <span class="arrow" :class="{ rotated: isOpen }">▼</span>
+      <span class="arrow" :class="{ rotated: isOpen }">▾</span>
     </button>
 
     <div v-if="isOpen" class="dropdown-menu">
@@ -15,8 +15,8 @@
           <h4 class="dropdown-title">{{ group.name }}</h4>
           <ul class="dropdown-list">
             <li v-for="cat in group.items" :key="cat.name">
-              <RouterLink 
-                :to="`/catalog/${cat.slug}`" 
+              <RouterLink
+                :to="`/catalog/${cat.slug}`"
                 @click="close"
                 class="dropdown-link"
               >
@@ -34,8 +34,10 @@
 <script setup>
 import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import { CATEGORY_GROUPS } from '../lib/catalog'
 
 const isOpen = ref(false)
+const categories = CATEGORY_GROUPS
 
 function toggle() {
   isOpen.value = !isOpen.value
@@ -45,7 +47,6 @@ function close() {
   isOpen.value = false
 }
 
-// Директива для закрытия при клике вне
 const vClickOutside = {
   mounted: (el, binding) => {
     el.clickOutsideEvent = (event) => {
@@ -59,69 +60,6 @@ const vClickOutside = {
     document.removeEventListener('click', el.clickOutsideEvent)
   }
 }
-
-const categories = [
-  {
-    name: 'Транспорт',
-    items: [
-      { name: 'Автомобили', slug: 'auto', icon: '🚗' },
-      { name: 'Мотоциклы', slug: 'moto', icon: '🏍️' },
-      { name: 'Грузовики', slug: 'trucks', icon: '🚛' },
-      { name: 'Запчасти', slug: 'parts', icon: '🔧' },
-      { name: 'Велосипеды', slug: 'bikes', icon: '🚲' },
-    ]
-  },
-  {
-    name: 'Недвижимость',
-    items: [
-      { name: 'Квартиры', slug: 'flats', icon: '🏠' },
-      { name: 'Дома', slug: 'houses', icon: '🏡' },
-      { name: 'Комнаты', slug: 'rooms', icon: '🚪' },
-      { name: 'Офисы', slug: 'offices', icon: '🏢' },
-      { name: 'Земля', slug: 'land', icon: '🌍' },
-    ]
-  },
-  {
-    name: 'Электроника',
-    items: [
-      { name: 'Телефоны', slug: 'phones', icon: '📱' },
-      { name: 'Ноутбуки', slug: 'laptops', icon: '💻' },
-      { name: 'Планшеты', slug: 'tablets', icon: '📟' },
-      { name: 'ТВ', slug: 'tv', icon: '📺' },
-      { name: 'Игры', slug: 'games', icon: '🎮' },
-    ]
-  },
-  {
-    name: 'Одежда и обувь',
-    items: [
-      { name: 'Женская', slug: 'women', icon: '👗' },
-      { name: 'Мужская', slug: 'men', icon: '👔' },
-      { name: 'Обувь', slug: 'shoes', icon: '👟' },
-      { name: 'Детская', slug: 'kids', icon: '🧸' },
-      { name: 'Аксессуары', slug: 'accessories', icon: '👜' },
-    ]
-  },
-  {
-    name: 'Дом и сад',
-    items: [
-      { name: 'Мебель', slug: 'furniture', icon: '🛋️' },
-      { name: 'Бытовая техника', slug: 'appliances', icon: '🧺' },
-      { name: 'Посуда', slug: 'dishes', icon: '🍽️' },
-      { name: 'Сад', slug: 'garden', icon: '🌱' },
-      { name: 'Ремонт', slug: 'repair', icon: '🔨' },
-    ]
-  },
-  {
-    name: 'Услуги',
-    items: [
-      { name: 'Ремонт', slug: 'repair-services', icon: '🔧' },
-      { name: 'Красота', slug: 'beauty', icon: '💄' },
-      { name: 'Обучение', slug: 'education', icon: '📚' },
-      { name: 'Перевозки', slug: 'transport', icon: '🚚' },
-      { name: 'Фото/Видео', slug: 'photo', icon: '📷' },
-    ]
-  },
-]
 </script>
 
 <style scoped>
@@ -150,7 +88,6 @@ const categories = [
   left: 0;
   margin-top: 8px;
   min-width: 600px;
-  /* Убрано: background: var(--card) - теперь сплошной цвет */
   background: #1a1f35;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -211,23 +148,6 @@ const categories = [
   text-align: center;
 }
 
-.dropdown-footer {
-  border-top: 1px solid var(--border);
-  padding: 12px 20px;
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.dropdown-link-all {
-  color: var(--primary-2);
-  font-weight: 600;
-  text-decoration: none;
-  font-size: 14px;
-}
-
-.dropdown-link-all:hover {
-  text-decoration: underline;
-}
-
 @keyframes slideDown {
   from {
     opacity: 0;
@@ -244,7 +164,7 @@ const categories = [
     min-width: 300px;
     max-width: 90vw;
   }
-  
+
   .dropdown-grid {
     grid-template-columns: repeat(2, 1fr);
   }

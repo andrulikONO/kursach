@@ -10,9 +10,17 @@
       <button class="btn" type="button" @click="reload">Обновить</button>
     </div>
 
-    <div class="catalog-grid">
-      <!-- Левая часть: список объявлений -->
-      <section class="listings-section">
+    <div class="catalog-layout">
+      <aside class="filters-column">
+        <FiltersPanel
+          :model="filters"
+          :show-category-filter="!currentCategory"
+          @update:model="filters = $event"
+          @apply="apply"
+        />
+      </aside>
+
+      <section class="listings-column">
         <div class="card" style="margin-bottom: 14px">
           <div class="card__body">
             <div class="muted" style="font-size: 13px">
@@ -35,82 +43,77 @@
           </div>
         </div>
 
-        <div v-else class="listings-list">
-          <RouterLink 
-            v-for="p in store.items" 
-            :key="p.id" 
-            class="listing-item" 
+        <div v-else class="listings-grid">
+          <RouterLink
+            v-for="p in store.items"
+            :key="p.id"
+            class="listing-card"
             :to="`/product/${p.id}`"
           >
             <div class="listing-thumb">
               {{ (p.type || 'Товар').slice(0, 1) }}
             </div>
-            <div class="listing-content">
-              <div class="title">{{ p.title }}</div>
-              <div class="listing-meta">
-                <div class="price">{{ formatPrice(p.price) }}</div>
-                <div class="muted" style="font-size: 12px">#{{ p.id }}</div>
-              </div>
-              <div class="tags">
+
+            <div class="listing-body">
+              <div class="listing-title">{{ p.title }}</div>
+
+              <div class="listing-price">{{ formatPrice(p.price) }}</div>
+
+              <div class="listing-tags">
+                <span class="tag tag--kind">{{ getListingKindLabel(p.listing_kind) }}</span>
                 <span class="tag">{{ p.type || '—' }}</span>
-                <span class="tag">{{ p.city || 'Город не указан' }}</span>
-                <span v-if="p.contact_phone" class="tag">📞 {{ p.contact_phone }}</span>
+              </div>
+
+              <div class="listing-footer">
+                <span class="muted">{{ p.city || 'Город не указан' }}</span>
+                <span class="muted">{{ formatDate(p.created_at) }}</span>
               </div>
             </div>
           </RouterLink>
         </div>
       </section>
-
-      <!-- Правая часть: фильтры -->
-      <aside class="filters-section">
-        <FiltersPanel 
-          :model="filters" 
-          @update:model="filters = $event" 
-          @apply="apply" 
-        />
-      </aside>
     </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { RouterLink } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import FiltersPanel from '../components/FiltersPanel.vue'
+import { getCategoryMeta, getListingKindLabel } from '../lib/catalog'
 import { useProductStore } from '../stores/productStore'
 
 const route = useRoute()
 const store = useProductStore()
-const filters = ref({ q: '', type: '', minPrice: '', maxPrice: '' })
+const filters = ref({ q: '', category: '', listingKind: '', minPrice: '', maxPrice: '' })
+const currentCategory = computed(() => getCategoryMeta(route.params.category))
 
-// Заголовок в зависимости от категории
 const categoryTitle = computed(() => {
-  if (route.params.category) {
-    const names = {
-      auto: 'Автомобили',
-      flats: 'Квартиры',
-      phones: 'Телефоны',
-      furniture: 'Мебель',
-    }
-    return names[route.params.category] || 'Каталог'
+  if (currentCategory.value) {
+    return currentCategory.value.name
   }
   return 'Последние объявления'
 })
 
 const categoryDescription = computed(() => {
-  if (route.params.category) {
+  if (currentCategory.value) {
     return `Все объявления в категории "${categoryTitle.value}"`
   }
   return 'Самые свежие объявления со всех категорий'
 })
 
-function apply(f) {
-  const filtersWithCategory = {
-    ...f,
-    type: route.params.category || f.type
+function buildFilters(model) {
+  return {
+    q: model.q,
+    category: currentCategory.value?.slug || model.category,
+    listingKind: model.listingKind,
+    minPrice: model.minPrice,
+    maxPrice: model.maxPrice
   }
-  store.loadList(filtersWithCategory)
+}
+
+function apply(model) {
+  store.loadList(buildFilters(model))
 }
 
 function reload() {
@@ -118,17 +121,32 @@ function reload() {
 }
 
 function formatPrice(v) {
-  const n = Number(v || 0)
-  return new Intl.NumberFormat('ru-RU', { 
-    style: 'currency', 
-    currency: 'RUB', 
-    maximumFractionDigits: 0 
-  }).format(n)
+  return new Intl.NumberFormat('ru-RU', {
+    style: 'currency',
+    currency: 'RUB',
+    maximumFractionDigits: 0
+  }).format(Number(v || 0))
+}
+
+function formatDate(v) {
+  if (!v) return '—'
+  return new Date(v).toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  })
 }
 
 onMounted(() => {
   apply(filters.value)
 })
+
+watch(
+  () => route.params.category,
+  () => {
+    apply(filters.value)
+  }
+)
 </script>
 
 <style scoped>
@@ -144,78 +162,125 @@ onMounted(() => {
   gap: 16px;
 }
 
-.catalog-grid {
+.catalog-layout {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: 280px minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
 
-.listings-section {
-  min-width: 0;
-}
-
-.filters-section {
+.filters-column {
   position: sticky;
   top: 84px;
 }
 
-.listings-list {
+.listings-column {
+  min-width: 0;
+}
+
+.listings-grid {
   display: grid;
-  gap: 14px;
+  grid-template-columns: repeat(5, 240px);
+  gap: 18px;
+  justify-content: start;
 }
 
-.listing-item {
-  display: flex;
-  gap: 16px;
-  background: var(--card-2);
+.listing-card {
+  display: grid;
+  grid-template-rows: 190px 1fr;
+  width: 240px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 12px;
   overflow: hidden;
-  transition: transform 140ms ease, border-color 140ms ease;
-  text-decoration: none;
+  background: var(--card-2);
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
   color: inherit;
+  text-decoration: none;
 }
 
-.listing-item:hover {
+.listing-card:hover {
   transform: translateY(-2px);
   border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
 }
 
 .listing-thumb {
-  width: 140px;
-  flex-shrink: 0;
   background: linear-gradient(135deg, rgba(124, 92, 255, 0.22), rgba(77, 211, 255, 0.14));
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 32px;
+  font-size: 40px;
   color: rgba(255, 255, 255, 0.72);
 }
 
-.listing-content {
-  padding: 14px;
+.listing-body {
   display: grid;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-
-.listing-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 12px;
+  padding: 16px;
+  align-content: start;
 }
 
-@media (max-width: 980px) {
-  .catalog-grid {
+.listing-title {
+  font-weight: 700;
+  line-height: 1.3;
+  min-height: 3.9em;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.listing-price {
+  font-weight: 800;
+  font-size: 19px;
+}
+
+.listing-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.listing-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.tag--kind {
+  background: rgba(255, 152, 0, 0.2);
+  color: #ffb74d;
+}
+
+@media (max-width: 1660px) {
+  .listings-grid {
+    grid-template-columns: repeat(4, 240px);
+  }
+}
+
+@media (max-width: 1380px) {
+  .catalog-layout {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .listings-grid {
+    grid-template-columns: repeat(3, 240px);
+  }
+}
+
+@media (max-width: 1080px) {
+  .catalog-layout {
     grid-template-columns: 1fr;
   }
-  
-  .filters-section {
+
+  .filters-column {
     position: static;
+  }
+
+  .listings-grid {
+    grid-template-columns: repeat(2, 240px);
   }
 }
 
@@ -225,14 +290,14 @@ onMounted(() => {
     align-items: flex-start;
     gap: 12px;
   }
-  
-  .listing-item {
-    flex-direction: column;
+
+  .listings-grid {
+    grid-template-columns: 1fr;
+    justify-content: stretch;
   }
-  
-  .listing-thumb {
+
+  .listing-card {
     width: 100%;
-    height: 140px;
   }
 }
 </style>

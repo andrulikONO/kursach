@@ -6,7 +6,9 @@
           <span class="brand__dot" aria-hidden="true" />
           <span>Объявления</span>
         </RouterLink>
-        
+
+        <CategoriesDropdown />
+
         <RouterLink class="support-link" to="/support" title="Служба поддержки">
           <span class="support-icon">🎧</span>
         </RouterLink>
@@ -14,29 +16,27 @@
 
       <nav class="nav">
         <RouterLink class="btn btn--primary" to="/new">Подать объявление</RouterLink>
-        
+
         <template v-if="isAuth && user">
-          <!-- ✅ Отображение логина и роли -->
           <div class="user-info">
             <span class="user-login">{{ user.login }}</span>
             <span class="user-role" :class="`role--${user.primaryRole}`">
               {{ user.primaryRoleLabel }}
             </span>
           </div>
-          
-          <!-- ✅ Кнопка админки -->
-          <RouterLink 
-            v-if="user.roles?.includes('admin')" 
-            class="btn btn--support" 
+
+          <RouterLink
+            v-if="user.roles?.includes('admin')"
+            class="btn btn--support"
             to="/admin"
           >
-            🛡️ Админ
+            Админ
           </RouterLink>
-          
+
           <RouterLink class="btn" to="/profile">Профиль</RouterLink>
           <button class="btn" @click="$emit('logout')">Выйти</button>
         </template>
-        
+
         <button v-else class="btn" @click="$emit('open-login')">Войти</button>
       </nav>
     </div>
@@ -45,17 +45,18 @@
 
 <script setup>
 import { RouterLink } from 'vue-router'
+import CategoriesDropdown from './CategoriesDropdown.vue'
 
 defineProps({
   isAuth: { type: Boolean, default: false },
-  user: { 
-    type: Object, 
-    default: () => ({ 
-      login: '', 
-      roles: [], 
-      primaryRole: '', 
-      primaryRoleLabel: '' 
-    }) 
+  user: {
+    type: Object,
+    default: () => ({
+      login: '',
+      roles: [],
+      primaryRole: '',
+      primaryRoleLabel: ''
+    })
   }
 })
 
@@ -66,7 +67,7 @@ defineEmits(['open-login', 'logout'])
 .header-left {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 
 .support-link {
@@ -124,6 +125,8 @@ defineEmits(['open-login', 'logout'])
 
 .role--user { background: rgba(124, 92, 255, 0.2); color: var(--primary-2); }
 .role--admin { background: rgba(255, 77, 109, 0.2); color: var(--danger); }
+.role--support { background: rgba(255, 152, 0, 0.2); color: #ff9800; }
+.role--moderator { background: rgba(0, 188, 212, 0.2); color: #00bcd4; }
 
 .btn--support {
   background: rgba(124, 92, 255, 0.2);

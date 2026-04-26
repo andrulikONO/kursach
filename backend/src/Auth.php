@@ -13,6 +13,7 @@ final class Auth
   {
     $candidates = [
       $_SERVER['HTTP_AUTHORIZATION'] ?? null,
+      $_SERVER['HTTP_X_AUTHORIZATION'] ?? null,
       $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? null,
       $_SERVER['Authorization'] ?? null,
     ];
