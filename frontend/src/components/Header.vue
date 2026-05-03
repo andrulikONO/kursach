@@ -132,7 +132,11 @@ const userAvatar = computed(() => {
 })
 
 const userName = computed(() => {
-  return props.user.firstName || props.user.login || 'Пользователь'
+  const fn = String(props.user.firstName || '').trim()
+  const ln = String(props.user.lastName || '').trim()
+  const full = [fn, ln].filter(Boolean).join(' ')
+  if (full) return full
+  return props.user.login || 'Пользователь'
 })
 
 // ✅ ИСПОЛЬЗУЕМ getPrimaryRole с userId для правильного определения роли

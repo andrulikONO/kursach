@@ -32,13 +32,15 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { RouterView } from 'vue-router'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 import Header from './components/Header.vue'
 import Footer from './components/Footer.vue'
 import LoginModal from './components/LoginModal.vue'
 import RegisterModal from './components/RegisterModal.vue'
 import { useAuth, initAuth } from './composables/useAuth'
 
+const route = useRoute()
+const router = useRouter()
 const { isAuth, user, logout } = useAuth()
 
 
@@ -56,8 +58,10 @@ function openLoginModal() {
 
 function closeLoginModal() {
   showLoginModal.value = false
-  if (route.query.login) {
-    router.replace({ query: { ...route.query, login: undefined } })
+  if (route.query?.login != null && route.query.login !== '') {
+    const q = { ...route.query }
+    delete q.login
+    router.replace({ query: q })
   }
 }
 
@@ -70,10 +74,13 @@ function closeRegisterModal() {
   showRegisterModal.value = false
 }
 
-function handleAuthSuccess() {
+async function handleAuthSuccess() {
   closeLoginModal()
   closeRegisterModal()
-  initAuth()
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('userProfile')
+  }
+  await initAuth()
 }
 
 function handleLogout() {

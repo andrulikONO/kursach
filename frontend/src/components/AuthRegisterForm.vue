@@ -67,18 +67,23 @@
     </label>
 
     <label class="form-group">
-      <span class="muted">Телефон (для объявлений, формат +7XXXXXXXXXX)</span>
-      <input
-        id="phone"
-        v-model="form.phone"
-        name="phone"
-        type="tel"
-        class="input"
-        :class="fieldClass('phone')"
-        autocomplete="tel"
-        placeholder="+79991234567"
-      />
-      <span v-if="fieldErrors.phone" class="field-msg danger">{{ fieldErrors.phone }}</span>
+      <span class="muted">Телефон (10 цифр; +7 уже учтён)</span>
+      <div class="phone-row">
+        <span class="phone-prefix" aria-hidden="true">+7</span>
+        <input
+          id="phoneDigits"
+          v-model="form.phoneDigits"
+          name="phoneDigits"
+          type="tel"
+          class="input phone-row__input"
+          :class="fieldClass('phoneDigits')"
+          autocomplete="tel-national"
+          inputmode="numeric"
+          maxlength="10"
+          placeholder="9001234567"
+        />
+      </div>
+      <span v-if="fieldErrors.phoneDigits" class="field-msg danger">{{ fieldErrors.phoneDigits }}</span>
     </label>
 
     <div class="row">
@@ -122,11 +127,13 @@
 
     <label class="form-group">
       <label class="checkbox-label" style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer">
-            <input 
-              type="checkbox" 
-              v-model="form.ageConfirmed" 
+            <input
+              type="checkbox"
+              v-model="form.ageConfirmed"
+              :true-value="true"
+              :false-value="false"
               style="margin-top: 3px; width: 18px; height: 18px; cursor: pointer"
-              required
+              @change="touchField('ageConfirmed')"
             />
             <span class="muted" style="font-size: 14px; line-height: 1.4">
               Мне есть 18 лет
@@ -240,6 +247,38 @@ async function handleSubmit() {
   padding: 8px 10px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
+}
+
+.phone-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.phone-prefix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  font-weight: 600;
+  color: var(--muted);
+  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.phone-row__input {
+  border: none !important;
+  border-radius: 0 !important;
+  flex: 1;
+  min-width: 0;
+}
+
+.phone-row:focus-within {
+  border-color: rgba(124, 92, 255, 0.55);
+  box-shadow: 0 0 0 2px rgba(124, 92, 255, 0.15);
 }
 
 .select-like {

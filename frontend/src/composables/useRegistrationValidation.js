@@ -7,16 +7,20 @@ import { checkAuthAvailability, registerUser } from '../lib/api'
  */
 const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
 
-function normalizePhone(raw) {
-  const d = String(raw || '').replace(/\D/g, '')
-  if (d.length === 11 && d[0] === '8') return '+7' + d.slice(1)
-  if (d.length === 11 && d[0] === '7') return '+' + d
-  if (d.length === 10) return '+7' + d
-  return String(raw || '').trim()
+/** 10 цифр после +7 (пользователь вводит только их) */
+function digitsOnly10(raw) {
+  let d = String(raw || '').replace(/\D/g, '')
+  if (d.length === 11 && (d[0] === '7' || d[0] === '8')) d = d.slice(1)
+  return d.slice(0, 10)
 }
 
-function isValidPhone(raw) {
-  return /^\+7\d{10}$/.test(normalizePhone(raw))
+function fullPhoneFromDigits(d10) {
+  const d = digitsOnly10(d10)
+  return d.length === 10 ? `+7${d}` : ''
+}
+
+function isValidPhoneDigits(d10) {
+  return digitsOnly10(d10).length === 10
 }
 
 function checkStrongPassword(pwd) {
@@ -37,10 +41,11 @@ export function useRegistrationValidation() {
     lastName: '',
     email: '',
     login: '',
-    phone: '',
+    /** только 10 цифр; +7 подставляется при отправке */
+    phoneDigits: '',
     password: '',
     confirmPassword: '',
-    ageConfirmed: '', // 'true' | 'false' | ''
+    ageConfirmed: false,
     gender: '', // MALE | FEMALE | ''
     acceptRules: false
   })
@@ -51,7 +56,7 @@ export function useRegistrationValidation() {
     lastName: '',
     email: '',
     login: '',
-    phone: '',
+    phoneDigits: '',
     password: '',
     confirmPassword: '',
     ageConfirmed: '',
@@ -64,7 +69,7 @@ export function useRegistrationValidation() {
     lastName: false,
     email: false,
     login: false,
-    phone: false,
+    phoneDigits: false,
     password: false,
     confirmPassword: false,
     ageConfirmed: false,
@@ -72,7 +77,7 @@ export function useRegistrationValidation() {
     acceptRules: false
   })
 
-  const textFields = ['firstName', 'lastName', 'email', 'login', 'phone']
+  const textFields = ['firstName', 'lastName', 'email', 'login', 'phoneDigits']
   const allFields = [...textFields, 'password', 'confirmPassword', 'ageConfirmed', 'gender', 'acceptRules']
 
   function setError(fieldId, msg) {
@@ -122,10 +127,10 @@ export function useRegistrationValidation() {
         valid = false
         msg = 'Логин уже занят'
       }
-    } else if (fieldId === 'phone') {
-      if (!isValidPhone(form.phone || '')) {
+    } else if (fieldId === 'phoneDigits') {
+      if (!isValidPhoneDigits(form.phoneDigits)) {
         valid = false
-        msg = 'Телефон: формат +7XXXXXXXXXX'
+        msg = 'Введите 10 цифр номера (код и номер без +7)'
       }
     } else if (fieldId === 'password') {
       let raw = form.password || ''
@@ -147,9 +152,9 @@ export function useRegistrationValidation() {
         msg = 'Пароли не совпадают'
       }
     } else if (fieldId === 'ageConfirmed') {
-      if (form.ageConfirmed !== 'true' && form.ageConfirmed !== 'false') {
+      if (form.ageConfirmed !== true && form.ageConfirmed !== 'true') {
         valid = false
-        msg = 'Выберите один из вариантов'
+        msg = 'Подтвердите, что вам есть 18 лет'
       }
     } else if (fieldId === 'gender') {
       if (form.gender !== 'MALE' && form.gender !== 'FEMALE') {
@@ -172,6 +177,9 @@ export function useRegistrationValidation() {
     }
     if (fieldId === 'acceptRules') {
       showValid = elValid && !!form.acceptRules
+    }
+    if (fieldId === 'ageConfirmed') {
+      showValid = elValid && (form.ageConfirmed === true || form.ageConfirmed === 'true')
     }
 
     return { valid: elValid, showValid, msg }
@@ -214,7 +222,13 @@ export function useRegistrationValidation() {
 
     if (textFields.includes(id)) {
       let v = t.value || ''
-      if (v.length && v.charAt(0) === ' ') {
+      if (id === 'phoneDigits') {
+        const d = digitsOnly10(v)
+        if (t.value !== d) {
+          t.value = d
+          form.phoneDigits = d
+        }
+      } else if (v.length && v.charAt(0) === ' ') {
         v = v.replace(/^\s+/, '')
         t.value = v
         form[id] = v
@@ -237,8 +251,14 @@ export function useRegistrationValidation() {
     touched[id] = true
 
     if (textFields.includes(id)) {
-      t.value = (t.value || '').trim()
-      form[id] = t.value
+      if (id === 'phoneDigits') {
+        const d = digitsOnly10(t.value || '')
+        t.value = d
+        form.phoneDigits = d
+      } else {
+        t.value = (t.value || '').trim()
+        form[id] = t.value
+      }
     }
 
     validateField(id)
@@ -260,9 +280,12 @@ export function useRegistrationValidation() {
   function validateAll() {
     allFields.forEach((id) => { touched[id] = true })
     textFields.forEach((id) => {
-      form[id] = (form[id] || '').trim()
+      if (id === 'phoneDigits') {
+        form.phoneDigits = digitsOnly10(form.phoneDigits)
+      } else {
+        form[id] = (form[id] || '').trim()
+      }
     })
-    form.phone = normalizePhone(String(form.phone || '').replace(/\s/g, ''))
     let ok = true
     allFields.forEach((id) => {
       const { valid } = validateField(id)
@@ -282,10 +305,10 @@ export function useRegistrationValidation() {
       lastName: form.lastName.trim(),
       email: form.email.trim(),
       login: form.login.trim(),
-      phone: normalizePhone(form.phone || ''),
+      phone: fullPhoneFromDigits(form.phoneDigits),
       password: form.password,
       confirmPassword: form.confirmPassword,
-      ageConfirmed: form.ageConfirmed === 'true',
+      ageConfirmed: form.ageConfirmed === true || form.ageConfirmed === 'true',
       gender: form.gender,
       acceptRules: form.acceptRules
     }
@@ -293,7 +316,12 @@ export function useRegistrationValidation() {
       return await registerUser(payload)
     } catch (e) {
       if ((e?.status === 422 || e?.status === 409) && e?.data?.fields) {
-        Object.assign(fieldErrors, e.data.fields)
+        const f = { ...e.data.fields }
+        if (f.phone) {
+          f.phoneDigits = f.phone
+          delete f.phone
+        }
+        Object.assign(fieldErrors, f)
       }
       throw e
     }

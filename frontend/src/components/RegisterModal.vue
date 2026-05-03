@@ -29,16 +29,13 @@
 <script setup>
 import { ref } from 'vue'
 import AuthRegisterForm from './AuthRegisterForm.vue'
-import { useAuth } from '../composables/useAuth'
 
 const emit = defineEmits(['close', 'open-login', 'success'])
 
-const { checkAuth } = useAuth()
 const error = ref(null)
 
 function onSuccess() {
   error.value = null
-  checkAuth()
   emit('success')
 }
 

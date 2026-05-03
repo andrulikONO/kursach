@@ -93,6 +93,11 @@
               </div>
             </div>
           </div>
+          <div v-else class="card">
+            <div class="card__body empty-state">
+              <p class="muted">Не удалось отобразить профиль. Попробуйте обновить страницу.</p>
+            </div>
+          </div>
         </div>
 
         <!-- ✅ Мои объявления -->
@@ -235,6 +240,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
 import { fetchMe, fetchMyProducts } from '../lib/api'
+import { getPrimaryRole, getRoleLabel } from '../lib/roles'
 import { useAuth } from '../composables/useAuth'
 
 const router = useRouter()

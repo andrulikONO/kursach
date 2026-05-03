@@ -72,14 +72,15 @@ async function refreshProfile() {
     
     // ✅ Собираем профиль вручную с правильными полями
     user.value = {
-      userId: me.id,  // ✅ Важно: userId, а не id
-      login: me.login,
-      email: me.email,
-      phone: me.phone,
-      firstName: me.first_name,
-      lastName: me.last_name,
+      userId: me.id ?? me.userId,
+      login: me.login ?? '',
+      email: me.email ?? '',
+      phone: me.phone ?? '',
+      firstName: me.first_name ?? me.firstName ?? '',
+      lastName: me.last_name ?? me.lastName ?? '',
+      gender: me.gender ?? '',
       roles: Array.isArray(me.roles) ? me.roles : [],
-      isBlocked: !!me.is_blocked
+      isBlocked: !!(me.is_blocked ?? me.isBlocked)
     }
 
     localStorage.setItem('userProfile', JSON.stringify(user.value))

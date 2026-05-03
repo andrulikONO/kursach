@@ -62,12 +62,9 @@ final class UserValidator
       $errors['confirmPassword'] = 'Пароли не совпадают';
     }
 
-    // Как в RegistrationServlet: только "true" / "false" (в JSON — bool или строки)
-    if (
-      $ageConfirmed !== true && $ageConfirmed !== false
-      && $ageConfirmed !== 'true' && $ageConfirmed !== 'false'
-    ) {
-      $errors['ageConfirmed'] = 'Выберите один из вариантов';
+    $ageOk = $ageConfirmed === true || $ageConfirmed === 'true' || $ageConfirmed === 1 || $ageConfirmed === '1';
+    if (!$ageOk) {
+      $errors['ageConfirmed'] = 'Подтвердите, что вам есть 18 лет';
     }
 
     if ($gender !== 'MALE' && $gender !== 'FEMALE') {
