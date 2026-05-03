@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <h1 class="title">🛡️ Админ-панель</h1>
-        <p class="muted">Управление пользователями и ролями</p>
+        <p class="muted">Управление пользователями</p>
       </div>
       <RouterLink to="/profile" class="btn btn--secondary">← В профиль</RouterLink>
     </div>
@@ -24,7 +24,7 @@
                 <th>Логин</th>
                 <th>Email</th>
                 <th>Телефон</th>
-                <th>Роли</th>
+                <th>Роль</th>
                 <th>Блокировка</th>
                 <th>Действия</th>
               </tr>
@@ -36,24 +36,20 @@
                 <td>{{ u.email }}</td>
                 <td>{{ u.phone }}</td>
                 <td>
-                  <div class="roles-list">
-                    <span 
-                      v-for="role in u.roles" 
-                      :key="role"
-                      class="role-badge"
-                      :class="`role--${role}`"
-                    >
-                      {{ getRoleLabel(role) }}
-                      <button 
-                        v-if="role !== 'user'" 
-                        class="role-remove"
-                        @click="removeRole(u.id, role)"
-                        title="Удалить роль"
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  </div>
+                  <!-- ✅ Показываем только одну роль -->
+                  <span 
+                    v-if="u.id === 1"
+                    class="role-badge role--main-admin"
+                  >
+                    👑 Главный админ
+                  </span>
+                  <span 
+                    v-else
+                    class="role-badge" 
+                    :class="`role--${getMainRole(u.roles)}`"
+                  >
+                    {{ getRoleLabel(getMainRole(u.roles)) }}
+                  </span>
                 </td>
                 <td>
                   <span :class="['status-badge', u.is_blocked ? 'status--blocked' : 'status--active']">
@@ -61,54 +57,39 @@
                   </span>
                 </td>
                 <td>
-                  <div class="actions">
-                    <!-- Выбор роли для назначения -->
-                    <select 
-                      v-model="selectedRole[u.id]" 
-                      class="input select"
-                      style="width: 140px; font-size: 13px; padding: 4px 8px"
-                    >
-                      <option value="">Добавить роль...</option>
-                      <option 
-                        v-for="role in availableRoles" 
-                        :key="role.code"
-                        :value="role.code"
-                        :disabled="u.roles.includes(role.code)"
+                  <!-- ✅ Пустое поле для главного админа (ID=1) -->
+                  <template v-if="u.id === 1">
+                    <span class="main-admin-badge"></span>
+                  </template>
+                  
+                  <!-- ✅ Для всех остальных -->
+                  <template v-else>
+                    <div class="actions">
+                      <button
+                        v-if="!u.is_blocked && u.id !== currentUserId"
+                        type="button"
+                        class="btn btn--small btn--danger"
+                        :disabled="busyId === u.id"
+                        @click="block(u.id)"
+                        title="Заблокировать"
                       >
-                        {{ role.name }}
-                      </option>
-                    </select>
-                    <button 
-                      class="btn btn--primary btn--small"
-                      @click="assignRole(u.id)"
-                      :disabled="!selectedRole[u.id] || busyId === u.id"
-                      title="Назначить роль"
-                    >
-                      ✓
-                    </button>
-                    
-                    <!-- Блокировка -->
-                    <button
-                      v-if="!u.is_blocked"
-                      type="button"
-                      class="btn btn--small btn--danger"
-                      :disabled="busyId === u.id"
-                      @click="block(u.id)"
-                      title="Заблокировать"
-                    >
-                      🔒
-                    </button>
-                    <button
-                      v-else
-                      type="button"
-                      class="btn btn--small btn--success"
-                      :disabled="busyId === u.id"
-                      @click="unblock(u.id)"
-                      title="Разблокировать"
-                    >
-                      🔓
-                    </button>
-                  </div>
+                        🔒
+                      </button>
+                      <button
+                        v-else-if="u.is_blocked && u.id !== currentUserId"
+                        type="button"
+                        class="btn btn--small btn--success"
+                        :disabled="busyId === u.id"
+                        @click="unblock(u.id)"
+                        title="Разблокировать"
+                      >
+                        🔓
+                      </button>
+                      
+                      <!-- Индикатор если это текущий пользователь -->
+                      <span v-if="u.id === currentUserId" class="current-user-badge">Вы</span>
+                    </div>
+                  </template>
                 </td>
               </tr>
             </tbody>
@@ -122,17 +103,35 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { fetchAdminUsers, fetchAdminRoles, adminAssignRole, adminRemoveRole, adminBlockUser, adminUnblockUser } from '../lib/api'
+import { fetchAdminUsers, adminBlockUser, adminUnblockUser } from '../lib/api'
 import { useAuth } from '../composables/useAuth'
 
 const { user, refreshProfile } = useAuth()
 const isAdmin = computed(() => (user.value?.roles || []).includes('admin'))
+const currentUserId = computed(() => user.value?.userId)
 
 const items = ref([])
-const availableRoles = ref([])
-const selectedRole = ref({})
 const error = ref(null)
 const busyId = ref(null)
+
+// ✅ Получаем основную роль (первую из списка, кроме 'user')
+function getMainRole(roles) {
+  if (!roles || roles.length === 0) return 'user'
+  // Если есть admin — это основная роль
+  if (roles.includes('admin')) return 'admin'
+  // Иначе первая роль
+  return roles[0]
+}
+
+function getRoleLabel(code) {
+  const map = {
+    user: 'Пользователь',
+    support: 'Поддержка',
+    moderator: 'Модератор',
+    admin: 'Админ'
+  }
+  return map[code] || code
+}
 
 async function load() {
   error.value = null
@@ -140,45 +139,10 @@ async function load() {
     await refreshProfile()
     if (!isAdmin.value) return
     
-    const [usersData, rolesData] = await Promise.all([
-      fetchAdminUsers(),
-      fetchAdminRoles()
-    ])
-    
-    items.value = usersData.items || []
-    availableRoles.value = rolesData.roles || []
+    const data = await fetchAdminUsers()
+    items.value = data.items || []
   } catch (e) {
     error.value = e?.message || String(e)
-  }
-}
-
-async function assignRole(userId) {
-  const roleCode = selectedRole.value[userId]
-  if (!roleCode) return
-  
-  busyId.value = userId
-  try {
-    await adminAssignRole(userId, roleCode)
-    selectedRole.value[userId] = ''
-    await load()
-  } catch (e) {
-    error.value = e?.message || String(e)
-  } finally {
-    busyId.value = null
-  }
-}
-
-async function removeRole(userId, roleCode) {
-  if (!confirm(`Удалить роль "${getRoleLabel(roleCode)}" у пользователя?`)) return
-  
-  busyId.value = userId
-  try {
-    await adminRemoveRole(userId, roleCode)
-    await load()
-  } catch (e) {
-    error.value = e?.message || String(e)
-  } finally {
-    busyId.value = null
   }
 }
 
@@ -204,16 +168,6 @@ async function unblock(id) {
   } finally {
     busyId.value = null
   }
-}
-
-function getRoleLabel(code) {
-  const map = {
-    user: 'Пользователь',
-    support: 'Поддержка',
-    moderator: 'Модератор',
-    admin: 'Админ'
-  }
-  return map[code] || code
 }
 
 onMounted(load)
@@ -261,17 +215,9 @@ onMounted(load)
   background: rgba(255, 255, 255, 0.02);
 }
 
-.roles-list {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
 .role-badge {
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
@@ -283,19 +229,11 @@ onMounted(load)
 .role--moderator { background: rgba(0, 188, 212, 0.2); color: #00bcd4; }
 .role--admin { background: rgba(255, 77, 109, 0.2); color: var(--danger); }
 
-.role-remove {
-  background: none;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 0;
-  opacity: 0.7;
-}
-
-.role-remove:hover {
-  opacity: 1;
-  color: var(--danger);
+/* ✅ Главный админ */
+.role--main-admin {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 152, 0, 0.3));
+  color: #ffd700;
+  border: 1px solid rgba(255, 215, 0, 0.5);
 }
 
 .status-badge {
@@ -336,6 +274,20 @@ onMounted(load)
   background: rgba(255, 77, 109, 0.2);
   border-color: var(--danger);
   color: var(--danger);
+}
+
+.main-admin-badge {
+  font-size: 18px;
+  color: #ffd700;
+}
+
+.current-user-badge {
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
 }
 
 .danger {

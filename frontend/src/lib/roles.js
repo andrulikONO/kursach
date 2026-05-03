@@ -3,15 +3,22 @@ export const ROLE_LABELS = {
   user: 'Пользователь',
   support: 'Поддержка',
   moderator: 'Модератор',
-  admin: 'Администратор'
+  admin: 'Администратор',
+  main_admin: 'Главный админ'  // ✅ Добавлено
 }
 
 const ROLE_PRIORITY = ['admin', 'support', 'moderator', 'user', 'guest']
 
+/**
+ * Возвращает человеко-читаемое название роли
+ */
 export function getRoleLabel(code) {
   return ROLE_LABELS[code] || code
 }
 
+/**
+ * Сортирует роли по приоритету
+ */
 export function sortRoles(roles) {
   const uniqueRoles = Array.from(new Set(Array.isArray(roles) ? roles : []))
 
@@ -29,6 +36,17 @@ export function sortRoles(roles) {
   })
 }
 
-export function getPrimaryRole(roles) {
-  return sortRoles(roles)[0] || 'user'
+/**
+ * ✅ Обновлённая функция: принимает userId для определения главного админа
+ */
+export function getPrimaryRole(roles, userId) {
+  const sorted = sortRoles(roles)
+  const primary = sorted[0] || 'user'
+  
+  // ✅ Если ID=1 и есть роль admin — это Главный админ
+  if (userId === 1 && primary === 'admin') {
+    return 'main_admin'
+  }
+  
+  return primary
 }

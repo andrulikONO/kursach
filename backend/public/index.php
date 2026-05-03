@@ -119,6 +119,7 @@ try {
   if (preg_match('#^/api/admin/users/(\d+)/unblock$#', $path, $m) && $method === 'POST') {
       AdminController::unblockUser($auth, (int)$m[1]);
   }
+  // ✅ Управление ролями (НОВОЕ)
   if ($path === '/api/admin/roles' && $method === 'GET') {
       AdminController::listRoles($auth);
   }
@@ -126,7 +127,7 @@ try {
       AdminController::assignRole($auth, (int)$m[1]);
   }
   if (preg_match('#^/api/admin/users/(\d+)/roles/([a-z_]+)$#', $path, $m) && $method === 'DELETE') {
-       AdminController::removeRole($auth, (int)$m[1], $m[2]);
+      AdminController::removeRole($auth, (int)$m[1], $m[2]);
   }
 
   Response::json(['error' => 'Not Found'], 404);

@@ -69,6 +69,13 @@ a {
   letter-spacing: 0.2px;
 }
 
+.role--main_admin { 
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 152, 0, 0.3)); 
+  color: #ffd700;
+  border: 1px solid rgba(255, 215, 0, 0.5);
+  font-weight: 700;
+}
+
 .brand__dot {
   width: 10px;
   height: 10px;

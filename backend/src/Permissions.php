@@ -8,8 +8,8 @@ final class Permissions
     {
         return [
             'guest'     => ['products.read'],
-            'user'      => ['products.read', 'products.create', 'profile.read', 'tickets.create', 'tickets.read_own', 'comments.create'],
-            'support'   => ['products.read', 'profile.read', 'tickets.read', 'tickets.respond', 'tickets.manage'],
+            'user'      => ['products.read', 'products.create', 'profile.read'],
+            'support'   => ['products.read', 'profile.read', 'tickets.read', 'tickets.respond'],
             'moderator' => ['products.read', 'products.moderate', 'profile.read'],
             'admin'     => ['admin.all', 'users.list', 'users.block', 'users.roles'],
         ];

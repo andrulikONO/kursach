@@ -69,16 +69,36 @@ async function refreshProfile() {
 
   try {
     const me = await fetchMe()
-    user.value = buildUserProfile(me)
+    
+    // ✅ Собираем профиль вручную с правильными полями
+    user.value = {
+      userId: me.id,  // ✅ Важно: userId, а не id
+      login: me.login,
+      email: me.email,
+      phone: me.phone,
+      firstName: me.first_name,
+      lastName: me.last_name,
+      roles: Array.isArray(me.roles) ? me.roles : [],
+      isBlocked: !!me.is_blocked
+    }
 
     localStorage.setItem('userProfile', JSON.stringify(user.value))
     return user.value
   } catch (e) {
     console.warn('Profile load failed', e)
-    const minimal = buildUserProfile({
+    
+    // ✅ Фолбэк: минимальный профиль из токена
+    const minimal = {
       userId: parseUserIdFromToken(token),
-      roles: ['user']
-    })
+      login: '',
+      email: '',
+      phone: '',
+      firstName: '',
+      lastName: '',
+      roles: ['user'],
+      isBlocked: false
+    }
+    
     user.value = minimal
     localStorage.setItem('userProfile', JSON.stringify(minimal))
     return minimal
