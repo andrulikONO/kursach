@@ -1,21 +1,21 @@
 <template>
   <label style="display: grid; gap: 6px">
     <span class="muted">{{ label }}</span>
-    <select class="select" :value="modelValue" @change="$emit('update:modelValue', $event.target.value)">
-      <option v-if="includeAll" value="">{{ emptyLabel }}</option>
-      <optgroup v-for="group in groups" :key="group.name" :label="group.name">
-        <option v-for="item in group.items" :key="item.slug" :value="item.slug">
-          {{ item.name }}
-        </option>
-      </optgroup>
-    </select>
+    <CustomSelect
+      :model-value="modelValue"
+      :options="selectOptions"
+      :placeholder="emptyLabel"
+      @update:model-value="$emit('update:modelValue', $event)"
+    />
   </label>
 </template>
 
 <script setup>
-import { CATEGORY_GROUPS } from '../lib/catalog'
+import { computed } from 'vue'
+import CustomSelect from './CustomSelect.vue'
+import { CATEGORY_OPTIONS } from '../lib/catalog'
 
-defineProps({
+const props = defineProps({
   modelValue: { type: String, default: '' },
   label: { type: String, default: 'Категория' },
   includeAll: { type: Boolean, default: true },
@@ -24,5 +24,11 @@ defineProps({
 
 defineEmits(['update:modelValue'])
 
-const groups = CATEGORY_GROUPS
+const selectOptions = computed(() => {
+  const items = CATEGORY_OPTIONS.map((o) => ({ value: o.slug, label: o.label }))
+  if (props.includeAll) {
+    return [{ value: '', label: props.emptyLabel }, ...items]
+  }
+  return items
+})
 </script>

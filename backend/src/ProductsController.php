@@ -17,43 +17,64 @@ final class ProductsController
     $listingKind = isset($_GET['listingKind']) ? trim((string)$_GET['listingKind']) : '';
     $minPrice = isset($_GET['minPrice']) && $_GET['minPrice'] !== '' ? (int)$_GET['minPrice'] : null;
     $maxPrice = isset($_GET['maxPrice']) && $_GET['maxPrice'] !== '' ? (int)$_GET['maxPrice'] : null;
+    $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+    $perPage = isset($_GET['perPage']) ? min(60, max(1, (int)$_GET['perPage'])) : 25;
 
-    $sql = "SELECT p.id, p.title, p.price, p.type, p.city, p.category_slug, p.listing_kind, p.created_at
-            FROM products p
-            WHERE p.status = 'active'";
+    $fromWhere = "FROM products p\nWHERE p.status = 'active'";
     $params = [];
 
     if ($q !== '') {
-      $sql .= ' AND (p.title ILIKE :q OR p.description ILIKE :q)';
+      $fromWhere .= ' AND (p.title ILIKE :q OR p.description ILIKE :q)';
       $params[':q'] = '%' . $q . '%';
     }
     if ($type !== '') {
-      $sql .= ' AND p.type = :type';
+      $fromWhere .= ' AND p.type = :type';
       $params[':type'] = $type;
     }
     if ($category !== '') {
-      $sql .= ' AND p.category_slug = :category';
+      $fromWhere .= ' AND p.category_slug = :category';
       $params[':category'] = $category;
     }
     if ($listingKind !== '') {
-      $sql .= ' AND p.listing_kind = :listingKind';
+      $fromWhere .= ' AND p.listing_kind = :listingKind';
       $params[':listingKind'] = ProductCatalog::normalizeListingKind($listingKind);
     }
     if ($minPrice !== null) {
-      $sql .= ' AND p.price >= :minPrice';
+      $fromWhere .= ' AND p.price >= :minPrice';
       $params[':minPrice'] = $minPrice;
     }
     if ($maxPrice !== null) {
-      $sql .= ' AND p.price <= :maxPrice';
+      $fromWhere .= ' AND p.price <= :maxPrice';
       $params[':maxPrice'] = $maxPrice;
     }
 
-    $sql .= ' ORDER BY p.created_at DESC LIMIT 60';
-
     $pdo = Db::pdo();
-    $st = $pdo->prepare($sql);
+
+    $countSql = 'SELECT COUNT(*) ' . $fromWhere;
+    $st = $pdo->prepare($countSql);
     $st->execute($params);
-    Response::json(['items' => $st->fetchAll(PDO::FETCH_ASSOC)]);
+    $total = (int)$st->fetchColumn();
+
+    $maxPage = $total > 0 ? (int)ceil($total / $perPage) : 1;
+    if ($page > $maxPage) {
+      $page = $maxPage;
+    }
+
+    $offset = ($page - 1) * $perPage;
+    $listSql = "SELECT p.id, p.title, p.price, p.type, p.city, p.category_slug, p.listing_kind, p.created_at\n"
+      . $fromWhere
+      . ' ORDER BY p.created_at DESC LIMIT ' . $perPage . ' OFFSET ' . $offset;
+
+    $st = $pdo->prepare($listSql);
+    $st->execute($params);
+    $items = $st->fetchAll(PDO::FETCH_ASSOC);
+
+    Response::json([
+      'items' => $items,
+      'total' => $total,
+      'page' => $page,
+      'perPage' => $perPage,
+    ]);
   }
 
   public static function listMine(AuthContext $auth): void

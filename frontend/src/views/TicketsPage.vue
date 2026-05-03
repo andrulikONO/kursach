@@ -9,13 +9,9 @@
       <aside class="tickets-list card">
         <div class="list-header">
           <h3>Обращения</h3>
-          <select v-model="filterStatus" class="input select" style="width: auto">
-            <option value="">Все статусы</option>
-            <option value="open">🔴 Открытые</option>
-            <option value="pending">🟡 В работе</option>
-            <option value="resolved">🟢 Решённые</option>
-            <option value="closed">⚫ Закрытые</option>
-          </select>
+          <div class="tickets-status-select">
+            <CustomSelect v-model="filterStatus" :options="STATUS_FILTER_OPTIONS" placeholder="Все статусы" />
+          </div>
         </div>
 
         <div v-if="loading" class="loading">Загрузка...</div>
@@ -117,14 +113,21 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-// ❌ УДАЛИТЬ: import { request } from '../lib/api'
-// ✅ ИСПОЛЬЗОВАТЬ экспортированные функции:
-import { 
-  fetchTickets, 
-  createTicket, 
-  fetchTicketById, 
-  respondToTicket 
+import CustomSelect from '../components/CustomSelect.vue'
+import {
+  fetchTickets,
+  createTicket,
+  fetchTicketById,
+  respondToTicket
 } from '../lib/api'
+
+const STATUS_FILTER_OPTIONS = [
+  { value: '', label: 'Все статусы' },
+  { value: 'open', label: '🔴 Открытые' },
+  { value: 'pending', label: '🟡 В работе' },
+  { value: 'resolved', label: '🟢 Решённые' },
+  { value: 'closed', label: '⚫ Закрытые' }
+]
 
 const loading = ref(false)
 const error = ref(null)
@@ -241,6 +244,12 @@ onMounted(loadTickets)
 .list-header h3 {
   margin: 0;
   font-size: 16px;
+}
+
+.tickets-status-select {
+  flex: 0 1 auto;
+  min-width: 200px;
+  max-width: 55%;
 }
 
 .tickets-items {

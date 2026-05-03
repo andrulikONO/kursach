@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   --bg: #0b1020;
   --card: rgba(255, 255, 255, 0.06);
   --card-2: rgba(255, 255, 255, 0.08);
@@ -156,6 +156,15 @@ a {
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
   outline: none;
+}
+
+/* Native <option> lists: light color-scheme + light text = invisible text on Windows Chrome */
+.input option,
+.select option,
+.input optgroup,
+.select optgroup {
+  background-color: #12172a;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .textarea {

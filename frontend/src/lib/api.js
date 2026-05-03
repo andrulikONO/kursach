@@ -48,6 +48,8 @@ export function fetchProducts(params) {
   if (params?.listingKind) qs.set('listingKind', params.listingKind)
   if (params?.minPrice != null && params.minPrice !== '') qs.set('minPrice', params.minPrice)
   if (params?.maxPrice != null && params.maxPrice !== '') qs.set('maxPrice', params.maxPrice)
+  if (params?.page != null && params.page !== '') qs.set('page', String(params.page))
+  if (params?.perPage != null && params.perPage !== '') qs.set('perPage', String(params.perPage))
 
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   return request(`/api/products${suffix}`)

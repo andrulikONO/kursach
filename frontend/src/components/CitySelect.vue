@@ -1,19 +1,21 @@
 <template>
   <label style="display: grid; gap: 6px">
     <span class="muted">{{ label }}</span>
-    <select class="select" :value="modelValue" @change="$emit('update:modelValue', $event.target.value)">
-      <option value="">{{ emptyLabel }}</option>
-      <option v-for="city in cities" :key="city" :value="city">
-        {{ city }}
-      </option>
-    </select>
+    <CustomSelect
+      :model-value="modelValue"
+      :options="selectOptions"
+      :placeholder="emptyLabel"
+      @update:model-value="$emit('update:modelValue', $event)"
+    />
   </label>
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import CustomSelect from './CustomSelect.vue'
 import { RUSSIAN_CITIES } from '../lib/cities'
 
-defineProps({
+const props = defineProps({
   modelValue: { type: String, default: '' },
   label: { type: String, default: 'Город' },
   emptyLabel: { type: String, default: 'Все города' }
@@ -21,5 +23,8 @@ defineProps({
 
 defineEmits(['update:modelValue'])
 
-const cities = RUSSIAN_CITIES
+const selectOptions = computed(() => [
+  { value: '', label: props.emptyLabel },
+  ...RUSSIAN_CITIES.map((city) => ({ value: city, label: city }))
+])
 </script>

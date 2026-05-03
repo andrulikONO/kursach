@@ -24,7 +24,10 @@
         <div class="card" style="margin-bottom: 14px">
           <div class="card__body">
             <div class="muted" style="font-size: 13px">
-              Показано: <b>{{ store.items.length }}</b>
+              <template v-if="store.total > 0">
+                Показано: <b>{{ rangeFrom }}–{{ rangeTo }}</b> из <b>{{ store.total }}</b>
+              </template>
+              <template v-else-if="!store.loading">Нет объявлений по выбранным условиям</template>
               <span v-if="store.loading"> · загрузка...</span>
             </div>
             <div v-if="store.error" class="danger" style="margin-top: 10px">
@@ -71,6 +74,42 @@
             </div>
           </RouterLink>
         </div>
+
+        <nav
+          v-if="totalPages > 1"
+          class="pagination"
+          aria-label="Страницы каталога"
+        >
+          <button
+            type="button"
+            class="btn pagination__nav"
+            :disabled="page <= 1 || store.loading"
+            @click="goToPage(page - 1)"
+          >
+            Назад
+          </button>
+          <div class="pagination__pages">
+            <button
+              v-for="n in pageNumbers"
+              :key="n"
+              type="button"
+              class="btn pagination__page"
+              :class="{ 'pagination__page--current': n === page }"
+              :disabled="store.loading"
+              @click="goToPage(n)"
+            >
+              {{ n }}
+            </button>
+          </div>
+          <button
+            type="button"
+            class="btn pagination__nav"
+            :disabled="page >= totalPages || store.loading"
+            @click="goToPage(page + 1)"
+          >
+            Вперёд
+          </button>
+        </nav>
       </section>
     </div>
   </div>
@@ -83,10 +122,40 @@ import FiltersPanel from '../components/FiltersPanel.vue'
 import { getCategoryMeta, getListingKindLabel } from '../lib/catalog'
 import { useProductStore } from '../stores/productStore'
 
+const PER_PAGE = 25
+
 const route = useRoute()
 const store = useProductStore()
 const filters = ref({ q: '', category: '', listingKind: '', minPrice: '', maxPrice: '' })
+const page = ref(1)
 const currentCategory = computed(() => getCategoryMeta(route.params.category))
+
+const totalPages = computed(() =>
+  store.total > 0 ? Math.max(1, Math.ceil(store.total / (store.perPage || PER_PAGE))) : 1
+)
+
+const rangeFrom = computed(() => {
+  if (store.total === 0) return 0
+  return (page.value - 1) * (store.perPage || PER_PAGE) + 1
+})
+
+const rangeTo = computed(() => {
+  if (store.total === 0) return 0
+  return Math.min(page.value * (store.perPage || PER_PAGE), store.total)
+})
+
+const pageNumbers = computed(() => {
+  const t = totalPages.value
+  const p = page.value
+  const max = 7
+  if (t <= max) {
+    return Array.from({ length: t }, (_, i) => i + 1)
+  }
+  let start = Math.max(1, p - Math.floor(max / 2))
+  let end = Math.min(t, start + max - 1)
+  start = Math.max(1, end - max + 1)
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+})
 
 const categoryTitle = computed(() => {
   if (currentCategory.value) {
@@ -108,16 +177,29 @@ function buildFilters(model) {
     category: currentCategory.value?.slug || model.category,
     listingKind: model.listingKind,
     minPrice: model.minPrice,
-    maxPrice: model.maxPrice
+    maxPrice: model.maxPrice,
+    page: page.value,
+    perPage: PER_PAGE
   }
 }
 
-function apply(model) {
-  store.loadList(buildFilters(model))
+async function apply(model, resetPage = true) {
+  if (resetPage) page.value = 1
+  await store.loadList(buildFilters(model))
+  page.value = store.page
 }
 
-function reload() {
-  apply(filters.value)
+async function goToPage(n) {
+  const last = totalPages.value
+  if (n < 1 || n > last || n === page.value) return
+  page.value = n
+  await store.loadList(buildFilters(filters.value))
+  page.value = store.page
+}
+
+async function reload() {
+  await store.loadList(buildFilters(filters.value))
+  page.value = store.page
 }
 
 function formatPrice(v) {
@@ -144,7 +226,7 @@ onMounted(() => {
 watch(
   () => route.params.category,
   () => {
-    apply(filters.value)
+    apply(filters.value, true)
   }
 )
 </script>
@@ -252,6 +334,38 @@ watch(
 .tag--kind {
   background: rgba(255, 152, 0, 0.2);
   color: #ffb74d;
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.pagination__pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.pagination__nav {
+  min-width: 88px;
+}
+
+.pagination__page {
+  min-width: 40px;
+  padding: 8px 10px;
+}
+
+.pagination__page--current {
+  border-color: rgba(124, 92, 255, 0.55);
+  background: rgba(124, 92, 255, 0.22);
 }
 
 @media (max-width: 1660px) {
