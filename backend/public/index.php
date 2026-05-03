@@ -6,6 +6,7 @@ require_once __DIR__ . '/../src/Env.php';
 require_once __DIR__ . '/../src/Db.php';
 require_once __DIR__ . '/../src/UserValidator.php';
 require_once __DIR__ . '/../src/UserRepository.php';
+require_once __DIR__ . '/../src/Realtime.php';
 require_once __DIR__ . '/../src/AuthContext.php';
 require_once __DIR__ . '/../src/Auth.php';
 require_once __DIR__ . '/../src/Permissions.php';
@@ -14,6 +15,8 @@ require_once __DIR__ . '/../src/ProductsController.php';
 require_once __DIR__ . '/../src/AuthController.php';
 require_once __DIR__ . '/../src/AdminController.php';
 require_once __DIR__ . '/../src/TicketsController.php';
+require_once __DIR__ . '/../src/ChatController.php';
+require_once __DIR__ . '/../src/EventsController.php';
 
 use Kursach\Response;
 use Kursach\Auth;
@@ -21,10 +24,12 @@ use Kursach\ProductsController;
 use Kursach\AuthController;
 use Kursach\AdminController;
 use Kursach\TicketsController;
+use Kursach\ChatController;
+use Kursach\EventsController;
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
-header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, DELETE, PATCH, OPTIONS');
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   http_response_code(204);
@@ -56,6 +61,9 @@ try {
 
   if ($path === '/api/me' && $method === 'GET') {
     AuthController::me($auth);
+  }
+  if ($path === '/api/me' && $method === 'PATCH') {
+    AuthController::updateMe($auth);
   }
 
   if ($path === '/api/my/products' && $method === 'GET') {
@@ -97,6 +105,19 @@ try {
   if ($path === '/api/tickets' && $method === 'POST') {
     TicketsController::create($auth);
   }
+  if ($path === '/api/chat/dialogs' && $method === 'GET') {
+    ChatController::listDialogs($auth);
+  }
+  if ($path === '/api/chat/messages' && $method === 'GET') {
+    ChatController::listMessages($auth);
+  }
+  if ($path === '/api/chat/messages' && $method === 'POST') {
+    ChatController::sendMessage($auth);
+  }
+  if ($path === '/api/events/stream' && $method === 'GET') {
+    EventsController::stream($auth);
+    exit;
+  }
 
   if (preg_match('#^/api/tickets/(\d+)$#', $path, $m) && $method === 'GET') {
     TicketsController::getOne($auth, (int)$m[1]);
@@ -128,6 +149,9 @@ try {
   }
   if (preg_match('#^/api/admin/users/(\d+)/roles/([a-z_]+)$#', $path, $m) && $method === 'DELETE') {
       AdminController::removeRole($auth, (int)$m[1], $m[2]);
+  }
+  if (preg_match('#^/api/admin/users/(\d+)$#', $path, $m) && $method === 'DELETE') {
+      AdminController::deleteUser($auth, (int)$m[1]);
   }
 
   Response::json(['error' => 'Not Found'], 404);

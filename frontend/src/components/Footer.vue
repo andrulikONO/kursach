@@ -40,7 +40,7 @@
     <div class="footer__bottom">
       <div class="container">
         <span class="muted" style="font-size: 13px">
-          © {{ currentYear }} Объявления. Курсовая работа.
+          © {{ currentYear }} Объявления.
         </span>
       </div>
     </div>

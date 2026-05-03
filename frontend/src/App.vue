@@ -85,7 +85,7 @@ async function handleAuthSuccess() {
 
 function handleLogout() {
   logout()
-  window.location.reload()
+  router.push('/login')
 }
 </script>
 

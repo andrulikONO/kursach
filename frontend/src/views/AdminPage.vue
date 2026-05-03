@@ -1,22 +1,29 @@
 <template>
   <div class="admin-page">
-    <div class="page-header">
-      <div>
-        <h1 class="title">🛡️ Админ-панель</h1>
-        <p class="muted">Управление пользователями</p>
-      </div>
-      <RouterLink to="/profile" class="btn btn--secondary">← В профиль</RouterLink>
-    </div>
+    <div class="card">
+      <div class="card__body">
+        <div class="header">
+          <div>
+            <h1 class="title">Панель управления пользователями</h1>
+          </div>
+          <button class="btn" @click="load" :disabled="loading">{{ loading ? 'Обновление...' : 'Обновить' }}</button>
+        </div>
 
-    <div v-if="!isAdmin" class="card">
-      <div class="card__body danger">Доступ только для роли admin</div>
-    </div>
+        <div class="toolbar">
+          <input
+            v-model.trim="query"
+            class="input search"
+            placeholder="Поиск: логин или почта"
+          />
+          <div class="count">
+            <span>Найдено: <strong>{{ filteredUsers.length }}</strong></span>
+            <span class="muted">Всего: {{ users.length }}</span>
+          </div>
+        </div>
 
-    <div v-else>
-      <div v-if="error" class="danger" style="margin-bottom: 12px">{{ error }}</div>
-      
-      <div class="card">
-        <div class="card__body" style="overflow-x: auto">
+        <div v-if="error" class="danger">{{ error }}</div>
+
+        <div class="table-wrap">
           <table class="table">
             <thead>
               <tr>
@@ -25,72 +32,55 @@
                 <th>Email</th>
                 <th>Телефон</th>
                 <th>Роль</th>
-                <th>Блокировка</th>
                 <th>Действия</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="u in items" :key="u.id">
+              <tr v-for="u in filteredUsers" :key="u.id">
                 <td>#{{ u.id }}</td>
                 <td><strong>{{ u.login }}</strong></td>
                 <td>{{ u.email }}</td>
-                <td>{{ u.phone }}</td>
+                <td>{{ u.phone || '—' }}</td>
                 <td>
-                  <!-- ✅ Показываем только одну роль -->
-                  <span 
-                    v-if="u.id === 1"
-                    class="role-badge role--main-admin"
-                  >
-                    👑 Главный админ
+                  <!-- Главный администратор отображаем как бейдж -->
+                  <span v-if="isMainAdmin(u)" class="role role--main">
+                    {{ ROLE_LABELS.main_admin }}
                   </span>
-                  <span 
-                    v-else
-                    class="role-badge" 
-                    :class="`role--${getMainRole(u.roles)}`"
-                  >
-                    {{ getRoleLabel(getMainRole(u.roles)) }}
-                  </span>
-                </td>
-                <td>
-                  <span :class="['status-badge', u.is_blocked ? 'status--blocked' : 'status--active']">
-                    {{ u.is_blocked ? 'Заблокирован' : 'Активен' }}
-                  </span>
-                </td>
-                <td>
-                  <!-- ✅ Пустое поле для главного админа (ID=1) -->
-                  <template v-if="u.id === 1">
-                    <span class="main-admin-badge"></span>
-                  </template>
                   
-                  <!-- ✅ Для всех остальных -->
-                  <template v-else>
-                    <div class="actions">
-                      <button
-                        v-if="!u.is_blocked && u.id !== currentUserId"
-                        type="button"
-                        class="btn btn--small btn--danger"
-                        :disabled="busyId === u.id"
-                        @click="block(u.id)"
-                        title="Заблокировать"
+                  <!-- Красивый select для остальных ролей -->
+                  <div v-else class="custom-select-wrapper" :class="{ 'disabled': isSelf(u) }">
+                    <select
+                      class="custom-select"
+                      :value="getRoleCode(u)"
+                      :disabled="isSelf(u) || busyId === u.id"
+                      @change="changeRole(u, $event.target.value)"
+                    >
+                      <option 
+                        v-for="(label, code) in EDITABLE_ROLES" 
+                        :key="code"
+                        :value="code"
                       >
-                        🔒
-                      </button>
-                      <button
-                        v-else-if="u.is_blocked && u.id !== currentUserId"
-                        type="button"
-                        class="btn btn--small btn--success"
-                        :disabled="busyId === u.id"
-                        @click="unblock(u.id)"
-                        title="Разблокировать"
-                      >
-                        🔓
-                      </button>
-                      
-                      <!-- Индикатор если это текущий пользователь -->
-                      <span v-if="u.id === currentUserId" class="current-user-badge">Вы</span>
-                    </div>
-                  </template>
-                </td>
+                        {{ label }}
+                      </option>
+                    </select>
+                    <div class="custom-select-arrow"></div>
+                    <div v-if="busyId === u.id" class="select-loading"></div>
+                  </div>
+                 </td>
+                <td>
+                  <span v-if="isSelf(u)" class="muted">Свой аккаунт</span>
+                  <button
+                    v-else
+                    class="btn btn--danger btn--small"
+                    :disabled="busyId === u.id || isMainAdmin(u)"
+                    @click="removeUser(u)"
+                  >
+                    {{ busyId === u.id ? '...' : 'Удалить' }}
+                  </button>
+                 </td>
+              </tr>
+              <tr v-if="filteredUsers.length === 0">
+                <td colspan="6" class="muted empty">Ничего не найдено</td>
               </tr>
             </tbody>
           </table>
@@ -101,70 +91,103 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { RouterLink } from 'vue-router'
-import { fetchAdminUsers, adminBlockUser, adminUnblockUser } from '../lib/api'
+import { computed, onMounted, ref } from 'vue'
+import { adminAssignRole, adminDeleteUser, fetchAdminUsers } from '../lib/api'
 import { useAuth } from '../composables/useAuth'
 
-const { user, refreshProfile } = useAuth()
-const isAdmin = computed(() => (user.value?.roles || []).includes('admin'))
-const currentUserId = computed(() => user.value?.userId)
-
-const items = ref([])
-const error = ref(null)
-const busyId = ref(null)
-
-// ✅ Получаем основную роль (первую из списка, кроме 'user')
-function getMainRole(roles) {
-  if (!roles || roles.length === 0) return 'user'
-  // Если есть admin — это основная роль
-  if (roles.includes('admin')) return 'admin'
-  // Иначе первая роль
-  return roles[0]
+// Константы ролей (без export)
+const ROLE_LABELS = {
+  guest: '👤 Гость',
+  user: '👥 Пользователь',
+  support: '🎧 Поддержка',
+  moderator: '⚖️ Модератор',
+  admin: '👑 Администратор',
+  main_admin: '⭐ Главный администратор'  
 }
 
-function getRoleLabel(code) {
-  const map = {
-    user: 'Пользователь',
-    support: 'Поддержка',
-    moderator: 'Модератор',
-    admin: 'Админ'
-  }
-  return map[code] || code
+// Роли, которые можно редактировать (без main_admin)
+const EDITABLE_ROLES = {
+  user: '👥 Пользователь',
+  support: '🎧 Поддержка',
+  moderator: '⚖️ Модератор',
+  admin: '👑 Администратор'
+}
+
+const { user } = useAuth()
+const users = ref([])
+const loading = ref(false)
+const error = ref('')
+const query = ref('')
+const busyId = ref(null)
+
+const currentUserId = computed(() => Number(user.value?.userId || 0))
+
+const filteredUsers = computed(() => {
+  const q = query.value.trim().toLowerCase()
+  if (!q) return users.value
+  return users.value.filter((u) => {
+    const login = String(u.login || '').toLowerCase()
+    const email = String(u.email || '').toLowerCase()
+    return login.includes(q) || email.includes(q)
+  })
+})
+
+function isSelf(u) {
+  return Number(u.id) === currentUserId.value
+}
+
+function isMainAdmin(u) {
+  // Проверяем по логину admin или по роли main_admin
+  return u.login === 'admin' || String(u.db_role || '').toLowerCase() === 'main_admin'
+}
+
+function getRoleCode(u) {
+  if (isMainAdmin(u)) return 'main_admin'
+  return (Array.isArray(u.roles) && u.roles[0]) ? u.roles[0] : 'user'
 }
 
 async function load() {
-  error.value = null
+  loading.value = true
+  error.value = ''
   try {
-    await refreshProfile()
-    if (!isAdmin.value) return
-    
     const data = await fetchAdminUsers()
-    items.value = data.items || []
+    users.value = data.items || []
   } catch (e) {
-    error.value = e?.message || String(e)
+    error.value = e?.message || 'Ошибка загрузки'
+  } finally {
+    loading.value = false
   }
 }
 
-async function block(id) {
-  busyId.value = id
+async function changeRole(targetUser, roleCode) {
+  if (isSelf(targetUser) || isMainAdmin(targetUser)) return
+  
+  busyId.value = targetUser.id
+  error.value = ''
   try {
-    await adminBlockUser(id)
+    await adminAssignRole(targetUser.id, roleCode)
     await load()
   } catch (e) {
-    error.value = e?.message || String(e)
+    error.value = e?.message || 'Ошибка изменения роли'
   } finally {
     busyId.value = null
   }
 }
 
-async function unblock(id) {
-  busyId.value = id
+async function removeUser(targetUser) {
+  if (isSelf(targetUser) || isMainAdmin(targetUser)) return
+  
+  if (!confirm(`Вы уверены, что хотите удалить пользователя "${targetUser.login}"?`)) {
+    return
+  }
+  
+  busyId.value = targetUser.id
+  error.value = ''
   try {
-    await adminUnblockUser(id)
+    await adminDeleteUser(targetUser.id)
     await load()
   } catch (e) {
-    error.value = e?.message || String(e)
+    error.value = e?.message || 'Ошибка удаления'
   } finally {
     busyId.value = null
   }
@@ -174,123 +197,150 @@ onMounted(load)
 </script>
 
 <style scoped>
-.admin-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  gap: 20px;
+.admin-page { display: grid; gap: 20px; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.search { min-width: 320px; max-width: 520px; }
+.count { display: flex; gap: 10px; align-items: center; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { padding: 12px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+.table th { font-size: 12px; text-transform: uppercase; color: var(--muted); letter-spacing: .04em; }
+.table tr:hover td { background: rgba(124, 92, 255, 0.04); }
+.empty { text-align: center; padding: 18px; }
+.danger { color: var(--danger); margin-bottom: 10px; }
+
+/* Красивый кастомный select */
+.custom-select-wrapper {
+  position: relative;
+  display: inline-block;
+  min-width: 160px;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.page-header h1 {
-  margin: 0 0 4px 0;
-}
-
-.table {
+.custom-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 8px 32px 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #1e293b);
+  cursor: pointer;
+  transition: all 0.2s ease;
   width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
+  font-family: inherit;
 }
 
-.table th,
-.table td {
-  padding: 12px 8px;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
+.custom-select:hover:not(:disabled) {
+  border-color: #7c5cff;
+  background: var(--bg-hover, #f8fafc);
 }
 
-.table th {
-  font-weight: 600;
-  color: var(--muted);
-  font-size: 12px;
-  text-transform: uppercase;
+.custom-select:focus {
+  outline: none;
+  border-color: #7c5cff;
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.1);
 }
 
-.table tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+.custom-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--bg-disabled, #f1f5f9);
 }
 
-.role-badge {
-  display: inline-flex;
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
+.custom-select-arrow {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid var(--muted, #64748b);
+  pointer-events: none;
+  transition: transform 0.2s ease;
 }
 
-.role--user { background: rgba(124, 92, 255, 0.2); color: var(--primary-2); }
-.role--support { background: rgba(255, 152, 0, 0.2); color: #ff9800; }
-.role--moderator { background: rgba(0, 188, 212, 0.2); color: #00bcd4; }
-.role--admin { background: rgba(255, 77, 109, 0.2); color: var(--danger); }
-
-/* ✅ Главный админ */
-.role--main-admin {
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 152, 0, 0.3));
-  color: #ffd700;
-  border: 1px solid rgba(255, 215, 0, 0.5);
+.custom-select-wrapper:hover .custom-select-arrow {
+  border-top-color: #7c5cff;
 }
 
-.status-badge {
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.status--active {
-  background: rgba(0, 170, 102, 0.2);
-  color: #00aa66;
-}
-
-.status--blocked {
-  background: rgba(255, 77, 109, 0.2);
-  color: var(--danger);
-}
-
-.actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.btn--small {
-  padding: 6px 10px;
+/* Стили для опций select */
+.custom-select option {
+  padding: 8px;
   font-size: 13px;
 }
 
-.btn--success {
-  background: rgba(0, 170, 102, 0.2);
-  border-color: #00aa66;
-  color: #00aa66;
-}
-
-.btn--danger {
-  background: rgba(255, 77, 109, 0.2);
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
-.main-admin-badge {
-  font-size: 18px;
-  color: #ffd700;
-}
-
-.current-user-badge {
-  padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.1);
+.role {
+  display: inline-flex;
+  padding: 6px 12px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--muted);
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
 }
 
-.danger {
-  color: var(--danger);
+.role--main {
+  background: linear-gradient(135deg, rgba(255, 196, 0, 0.15), rgba(255, 152, 0, 0.1));
+  color: #e67e22;
+  border: 1px solid rgba(230, 126, 34, 0.3);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn--small {
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+/* Анимация загрузки для select */
+.select-loading {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border, #e2e8f0);
+  border-top-color: #7c5cff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  pointer-events: none;
+  background: var(--bg-primary, #fff);
+}
+
+@keyframes spin {
+  to { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .custom-select-wrapper {
+    min-width: 130px;
+  }
+  
+  .custom-select {
+    font-size: 12px;
+    padding: 6px 28px 6px 10px;
+  }
+  
+  .role--main {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+}
+
+/* Стили для бейджа загрузки */
+.muted {
+  color: var(--muted, #64748b);
+}
+
+.btn--danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

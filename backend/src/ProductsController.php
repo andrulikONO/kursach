@@ -247,9 +247,24 @@ final class ProductsController
 
   public static function delete(AuthContext $auth, int $id): void
   {
-    Permissions::require($auth, 'products.delete');
+    if ($auth->isGuest() || $auth->userId === null) {
+      Response::json(['error' => 'Unauthorized'], 401);
+    }
 
     $pdo = Db::pdo();
+    $st = $pdo->prepare("SELECT id, user_id FROM products WHERE id = :id AND status = 'active' LIMIT 1");
+    $st->execute([':id' => $id]);
+    $product = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$product) {
+      Response::json(['error' => 'Not Found'], 404);
+    }
+
+    $isPrivileged = $auth->hasRole('admin') || $auth->hasRole('moderator') || ((int)$auth->userId === 1);
+    $isOwner = ((int)$product['user_id'] === (int)$auth->userId);
+    if (!$isPrivileged && !$isOwner) {
+      Response::json(['error' => 'Forbidden'], 403);
+    }
+
     $st = $pdo->prepare("UPDATE products SET status = 'deleted', updated_at = NOW() WHERE id = :id AND status = 'active'");
     $st->execute([':id' => $id]);
     if ($st->rowCount() === 0) {

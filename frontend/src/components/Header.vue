@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="topbar">
     <div class="container topbar__inner">
       <!-- Левая часть: логотип + поддержка -->
@@ -19,6 +19,8 @@
         <RouterLink class="btn btn--primary" to="/new">Подать объявление</RouterLink>
         
         <!-- ✅ Переключатель темы (всегда виден) -->
+        <RouterLink v-if="isAuth" class="btn" to="/chat" title="Чат">💬</RouterLink>
+
         <button 
           class="btn btn--theme" 
           @click="toggleTheme" 
@@ -44,6 +46,15 @@
                 <span class="menu-icon">👤</span>
                 <span>Профиль</span>
               </RouterLink>
+              <RouterLink 
+                v-if="isAdminUser" 
+                to="/admin" 
+                class="menu-item menu-item-admin" 
+                @click="closeMenu"
+              >
+                <span class="menu-icon">🛡️</span>
+                <span>Панель администратора</span>
+              </RouterLink>
               <div class="menu-divider"></div>
               <button class="menu-item menu-logout" @click="handleLogout">
                 <span class="menu-icon">🚪</span>
@@ -63,7 +74,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
-// ✅ Импортируем helper для ролей
 import { getPrimaryRole, getRoleLabel } from '../lib/roles'
 
 const props = defineProps({
@@ -75,7 +85,7 @@ const props = defineProps({
       lastName: '', 
       login: '', 
       roles: [],
-      userId: null  // ✅ Добавляем userId
+      userId: null
     }) 
   }
 })
@@ -97,7 +107,7 @@ onMounted(() => {
 
 const themeIcon = computed(() => {
   if (currentTheme.value === 'dark') return '🌙'
-  else return '☀️'
+  return '☀️'
 })
 
 const currentThemeLabel = computed(() => {
@@ -126,9 +136,11 @@ function applyTheme(theme) {
   }
 }
 
-// ✅ Данные пользователя для меню
+// Данные пользователя для меню
 const userAvatar = computed(() => {
-  return props.user.firstName?.[0]?.toUpperCase() || props.user.login?.[0]?.toUpperCase() || 'U'
+  return props.user.firstName?.[0]?.toUpperCase() || 
+         props.user.login?.[0]?.toUpperCase() || 
+         'U'
 })
 
 const userName = computed(() => {
@@ -139,16 +151,21 @@ const userName = computed(() => {
   return props.user.login || 'Пользователь'
 })
 
-// ✅ ИСПОЛЬЗУЕМ getPrimaryRole с userId для правильного определения роли
 const userRole = computed(() => {
   const roles = props.user.roles || []
   const userId = props.user.userId
-  return getPrimaryRole(roles, userId)  // ✅ Передаём userId
+  return getPrimaryRole(roles, userId)
 })
 
-const userRoleLabel = computed(() => getRoleLabel(userRole.value))  // ✅ Используем getRoleLabel
+const userRoleLabel = computed(() => getRoleLabel(userRole.value))
 
-const isAdminUser = computed(() => (props.user.roles || []).includes('admin'))
+// ✅ ДОБАВЬТЕ ЭТО СВОЙСТВО - проверка на администратора
+const isAdminUser = computed(() => {
+  const roles = props.user.roles || []
+  // Для отладки - посмотрите в консоли, какие роли приходят
+  console.log('User roles in TopBar:', roles)
+  return roles.includes('admin') || roles.includes('main_admin')
+})
 
 function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value
@@ -163,18 +180,29 @@ function handleLogout() {
   emit('logout')
 }
 
-// ✅ Директива для закрытия при клике вне меню
+// Директива для закрытия при клике вне меню
 const vClickOutside = {
-  mounted: (el, binding) => {
+  mounted(el, binding) {
+    if (typeof binding.value !== 'function') {
+      console.warn('v-click-outside expects a function')
+      return
+    }
+    
     el.clickOutsideEvent = (event) => {
       if (!(el === event.target || el.contains(event.target))) {
-        binding.value()
+        binding.value(event)
       }
     }
-    document.addEventListener('click', el.clickOutsideEvent)
+    
+    setTimeout(() => {
+      document.addEventListener('click', el.clickOutsideEvent)
+    }, 0)
   },
-  unmounted: (el) => {
-    document.removeEventListener('click', el.clickOutsideEvent)
+  
+  unmounted(el) {
+    if (el.clickOutsideEvent) {
+      document.removeEventListener('click', el.clickOutsideEvent)
+    }
   }
 }
 </script>
@@ -257,6 +285,45 @@ const vClickOutside = {
 /* ===== Бургер-меню пользователя ===== */
 .user-menu {
   position: relative;
+}
+
+.menu-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: #1a1f35;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  overflow: hidden;
+  
+  /* ✅ Скрываем по умолчанию */
+  display: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+/* ✅ Показываем когда открыто */
+.user-menu.open .menu-dropdown {
+  display: block;
+  opacity: 1;
+  visibility: visible;
+  animation: slideDown 0.2s ease;
+}
+
+/* Анимация открытия */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .user-btn {

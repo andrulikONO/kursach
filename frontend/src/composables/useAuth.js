@@ -1,9 +1,11 @@
 import { ref } from 'vue'
-import { fetchMe, loginUser } from '../lib/api'
+import { fetchMe, loginUser, setUnauthorizedHandler } from '../lib/api'
 import { getPrimaryRole, getRoleLabel, sortRoles } from '../lib/roles'
 
 const isAuth = ref(false)
 const user = ref(null)
+const lastEventId = ref(Number(localStorage.getItem('lastEventId') || 0))
+let eventSource = null
 
 function parseUserIdFromToken(data) {
   const m = String(data || '').match(/user:(\d+)/i)
@@ -13,103 +15,115 @@ function parseUserIdFromToken(data) {
 function buildUserProfile(profile) {
   const roles = sortRoles(profile?.roles || [])
   const primaryRole = getPrimaryRole(roles)
-
+  const fio = profile?.fio || [profile?.first_name || profile?.firstName || '', profile?.last_name || profile?.lastName || ''].filter(Boolean).join(' ').trim()
   return {
     userId: profile?.id ?? profile?.userId ?? null,
     login: profile?.login || '',
     email: profile?.email || '',
     phone: profile?.phone || '',
+    fio,
     firstName: profile?.first_name || profile?.firstName || '',
     lastName: profile?.last_name || profile?.lastName || '',
-    gender: profile?.gender || '',
     roles,
-    isBlocked: !!(profile?.is_blocked ?? profile?.isBlocked),
     primaryRole,
-    primaryRoleLabel: getRoleLabel(primaryRole)
+    primaryRoleLabel: getRoleLabel(primaryRole),
+    isBlocked: !!(profile?.is_blocked ?? profile?.isBlocked)
   }
+}
+
+function saveProfile(profile) {
+  user.value = profile
+  localStorage.setItem('userProfile', JSON.stringify(profile))
+}
+
+function hardLogout() {
+  localStorage.removeItem('demoAuth')
+  localStorage.removeItem('userProfile')
+  localStorage.removeItem('lastEventId')
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
+  }
+  isAuth.value = false
+  user.value = null
 }
 
 function checkAuth() {
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('demoAuth') : null
-
   if (!token) {
-    isAuth.value = false
-    user.value = null
-    localStorage.removeItem('userProfile')
+    hardLogout()
     return
   }
-
   isAuth.value = true
-
   const cachedProfile = typeof localStorage !== 'undefined' ? localStorage.getItem('userProfile') : null
   if (cachedProfile) {
     try {
-      user.value = buildUserProfile(JSON.parse(cachedProfile))
+      saveProfile(buildUserProfile(JSON.parse(cachedProfile)))
       return
-    } catch {
-      // Если кэш поврежден, восстановим минимальный профиль ниже.
-    }
+    } catch {}
   }
-
-  const minimalProfile = buildUserProfile({
-    userId: parseUserIdFromToken(token),
-    roles: ['user']
-  })
-  user.value = minimalProfile
-  localStorage.setItem('userProfile', JSON.stringify(minimalProfile))
+  saveProfile(buildUserProfile({ userId: parseUserIdFromToken(token), roles: ['user'] }))
 }
 
 async function refreshProfile() {
-  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('demoAuth') : null
-  if (!token) {
-    user.value = null
-    localStorage.removeItem('userProfile')
+  if (!localStorage.getItem('demoAuth')) {
+    hardLogout()
     return null
   }
+  const me = await fetchMe()
+  const profile = buildUserProfile(me)
+  saveProfile(profile)
+  return profile
+}
 
-  try {
-    const me = await fetchMe()
-    
-    // ✅ Собираем профиль вручную с правильными полями
-    user.value = {
-      userId: me.id ?? me.userId,
-      login: me.login ?? '',
-      email: me.email ?? '',
-      phone: me.phone ?? '',
-      firstName: me.first_name ?? me.firstName ?? '',
-      lastName: me.last_name ?? me.lastName ?? '',
-      gender: me.gender ?? '',
-      roles: Array.isArray(me.roles) ? me.roles : [],
-      isBlocked: !!(me.is_blocked ?? me.isBlocked)
-    }
+function updateUserRealtime(patch) {
+  if (!user.value) return
+  const next = buildUserProfile({ ...user.value, ...patch })
+  saveProfile(next)
+}
 
-    localStorage.setItem('userProfile', JSON.stringify(user.value))
-    return user.value
-  } catch (e) {
-    console.warn('Profile load failed', e)
-    
-    // ✅ Фолбэк: минимальный профиль из токена
-    const minimal = {
-      userId: parseUserIdFromToken(token),
-      login: '',
-      email: '',
-      phone: '',
-      firstName: '',
-      lastName: '',
-      roles: ['user'],
-      isBlocked: false
+function connectEvents() {
+  if (!isAuth.value) return
+  if (eventSource) {
+    eventSource.close()
+  }
+  eventSource = new EventSource(`/api/events/stream?lastEventId=${encodeURIComponent(lastEventId.value || 0)}`)
+  eventSource.onmessage = (e) => {
+    if (e.lastEventId) {
+      lastEventId.value = Number(e.lastEventId)
+      localStorage.setItem('lastEventId', String(lastEventId.value))
     }
-    
-    user.value = minimal
-    localStorage.setItem('userProfile', JSON.stringify(minimal))
-    return minimal
+  }
+  eventSource.addEventListener('role_changed', (e) => {
+    try {
+      const data = JSON.parse(e.data || '{}')
+      updateUserRealtime({ roles: Array.isArray(data.roles) ? data.roles : [] })
+    } catch {}
+  })
+  eventSource.addEventListener('account_deleted', () => {
+    hardLogout()
+    window.location.href = '/login'
+  })
+  eventSource.onerror = () => {
+    if (eventSource) eventSource.close()
+    setTimeout(() => {
+      if (isAuth.value) connectEvents()
+    }, 1500)
   }
 }
+
+setUnauthorizedHandler(() => {
+  hardLogout()
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login'
+  }
+})
 
 export async function initAuth() {
   checkAuth()
   if (isAuth.value) {
     await refreshProfile()
+    connectEvents()
   }
 }
 
@@ -121,17 +135,11 @@ export function useAuth() {
     }
     isAuth.value = true
     await refreshProfile()
-  }
-
-  function register() {
-    return Promise.resolve()
+    connectEvents()
   }
 
   function logout() {
-    localStorage.removeItem('demoAuth')
-    localStorage.removeItem('userProfile')
-    isAuth.value = false
-    user.value = null
+    hardLogout()
   }
 
   function isAdmin() {
@@ -142,10 +150,10 @@ export function useAuth() {
     isAuth,
     user,
     login,
-    register,
     logout,
     checkAuth,
     refreshProfile,
-    isAdmin
+    isAdmin,
+    updateUserRealtime
   }
 }

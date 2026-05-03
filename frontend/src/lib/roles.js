@@ -4,7 +4,7 @@ export const ROLE_LABELS = {
   support: 'Поддержка',
   moderator: 'Модератор',
   admin: 'Администратор',
-  main_admin: 'Главный админ'  // ✅ Добавлено
+  main_admin: 'Главный админ'  
 }
 
 const ROLE_PRIORITY = ['admin', 'support', 'moderator', 'user', 'guest']

@@ -9,7 +9,7 @@ namespace Kursach;
  */
 final class Auth
 {
-  private static function readAuthorizationHeader(): string
+  public static function readAuthorizationHeader(): string
   {
     $candidates = [
       $_SERVER['HTTP_AUTHORIZATION'] ?? null,
@@ -57,6 +57,12 @@ final class Auth
 
     try {
       $pdo = Db::pdo();
+      $revoked = $pdo->prepare('SELECT 1 FROM revoked_tokens WHERE token = :t LIMIT 1');
+      $revoked->execute([':t' => $h]);
+      if ($revoked->fetchColumn()) {
+        return new AuthContext(null, ['guest'], false);
+      }
+
       $snap = UserRepository::getAuthSnapshot($pdo, $userId);
       if ($snap === null) {
         return new AuthContext(null, ['guest'], false);

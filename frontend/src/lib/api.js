@@ -1,4 +1,9 @@
 const API_BASE = ''
+let unauthorizedHandler = null
+
+export function setUnauthorizedHandler(handler) {
+  unauthorizedHandler = typeof handler === 'function' ? handler : null
+}
 
 function getAuthHeaders() {
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('demoAuth') : null
@@ -25,6 +30,9 @@ async function request(path, { method = 'GET', body, headers, skipAuth = false }
   }
 
   if (!res.ok) {
+    if ((res.status === 401 || res.status === 403) && unauthorizedHandler && !skipAuth) {
+      unauthorizedHandler({ status: res.status, data })
+    }
     let msg = (data && data.error) || `HTTP ${res.status}`
     if (res.status === 422 && data && data.fields) {
       msg = 'Проверьте правильность заполнения полей'
@@ -38,6 +46,10 @@ async function request(path, { method = 'GET', body, headers, skipAuth = false }
     throw err
   }
   return data
+}
+
+export function authRequest(path, options = {}) {
+  return request(path, options)
 }
 
 export function fetchProducts(params) {
@@ -98,6 +110,9 @@ export function respondToTicket(id, payload) {
 export function fetchMe() {
   return request('/api/me')
 }
+export function updateMe(payload) {
+  return request('/api/me', { method: 'PATCH', body: payload })
+}
 
 export function fetchMyProducts() {
   return request('/api/my/products')
@@ -106,6 +121,7 @@ export function fetchMyProducts() {
 export function loginUser(payload) {
   return request('/api/auth/login', { method: 'POST', body: payload, skipAuth: true })
 }
+
 
 export function checkAuthAvailability(type, value) {
   const qs = new URLSearchParams({ type, value })
@@ -156,4 +172,22 @@ export function adminBlockUser(userId) {
 
 export function adminUnblockUser(userId) {
   return request(`/api/admin/users/${encodeURIComponent(userId)}/unblock`, { method: 'POST' })
+}
+
+export function adminDeleteUser(userId) {
+  return request(`/api/admin/users/${encodeURIComponent(userId)}`, { method: 'DELETE' })
+}
+
+export function fetchChatDialogs() {
+  return request('/api/chat/dialogs')
+}
+
+export function fetchChatMessages(peerId, afterId = 0) {
+  const qs = new URLSearchParams({ peerId: String(peerId) })
+  if (afterId) qs.set('afterId', String(afterId))
+  return request(`/api/chat/messages?${qs.toString()}`)
+}
+
+export function sendChatMessage(receiverId, body) {
+  return request('/api/chat/messages', { method: 'POST', body: { receiverId, body } })
 }

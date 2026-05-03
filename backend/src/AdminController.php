@@ -109,7 +109,13 @@ final class AdminController
         
         // Назначаем роль
         UserRepository::assignRoleByCode($pdo, $userId, $roleCode);
-        
+        UserRepository::updatePrimaryRole($pdo, $userId);
+        $snap = UserRepository::getAuthSnapshot($pdo, $userId);
+        Realtime::push($pdo, $userId, 'role_changed', [
+            'roles' => $snap['roles'] ?? ['user'],
+            'role' => ($snap['roles'][0] ?? 'user'),
+        ]);
+
         Response::json(['ok' => true, 'userId' => $userId, 'role' => $roleCode]);
     }
 
@@ -144,7 +150,13 @@ final class AdminController
             AND role_id = (SELECT id FROM roles WHERE code = :code)
         ');
         $st->execute([':user_id' => $userId, ':code' => $roleCode]);
-        
+        UserRepository::updatePrimaryRole($pdo, $userId);
+        $snap = UserRepository::getAuthSnapshot($pdo, $userId);
+        Realtime::push($pdo, $userId, 'role_changed', [
+            'roles' => $snap['roles'] ?? ['user'],
+            'role' => ($snap['roles'][0] ?? 'user'),
+        ]);
+
         Response::json(['ok' => true, 'userId' => $userId, 'role' => $roleCode]);
     }
 
@@ -158,5 +170,23 @@ final class AdminController
         $roles = $st->fetchAll(PDO::FETCH_ASSOC);
         
         Response::json(['roles' => $roles]);
+    }
+
+    public static function deleteUser(AuthContext $auth, int $userId): void
+    {
+        Permissions::require($auth, 'users.block');
+        if ($userId === 1 || ($auth->userId !== null && $auth->userId === $userId)) {
+            Response::json(['error' => 'Forbidden'], 403);
+        }
+
+        $pdo = Db::pdo();
+        $token = 'Demo user:' . $userId;
+        $rt = $pdo->prepare('INSERT INTO revoked_tokens (token, user_id) VALUES (:t, :uid) ON CONFLICT (token) DO NOTHING');
+        $rt->execute([':t' => $token, ':uid' => $userId]);
+        Realtime::push($pdo, $userId, 'account_deleted', ['userId' => $userId]);
+
+        $st = $pdo->prepare('DELETE FROM users WHERE id = :id');
+        $st->execute([':id' => $userId]);
+        Response::json(['ok' => true, 'userId' => $userId]);
     }
 }

@@ -148,7 +148,7 @@ final class UserRepository
   public static function getProfile(PDO $pdo, int $userId): ?array
   {
     $st = $pdo->prepare(
-      'SELECT id, first_name, last_name, email, login, phone, is_blocked, created_at
+      'SELECT id, first_name, last_name, fio, email, login, phone, role, is_blocked, created_at
        FROM users WHERE id = :id LIMIT 1'
     );
     $st->execute([':id' => $userId]);
@@ -158,8 +158,43 @@ final class UserRepository
     }
     $snap = self::getAuthSnapshot($pdo, $userId);
     $row['roles'] = $snap['roles'] ?? [];
+    $row['role'] = $row['roles'][0] ?? ((string)($row['role'] ?? 'user'));
+    if ((string)($row['fio'] ?? '') === '') {
+      $row['fio'] = trim((string)($row['first_name'] ?? '') . ' ' . (string)($row['last_name'] ?? ''));
+    }
     $row['is_blocked'] = self::boolish($row['is_blocked']);
     return $row;
+  }
+
+  public static function updateProfile(PDO $pdo, int $userId, string $email, string $phone, string $fio): ?array
+  {
+    $parts = preg_split('/\s+/u', trim($fio)) ?: [];
+    $first = $parts[0] ?? '';
+    $last = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : '';
+
+    $st = $pdo->prepare(
+      'UPDATE users
+       SET email = :email, phone = :phone, fio = :fio, first_name = :first_name, last_name = :last_name, updated_at = NOW()
+       WHERE id = :id'
+    );
+    $st->execute([
+      ':id' => $userId,
+      ':email' => $email,
+      ':phone' => $phone,
+      ':fio' => $fio,
+      ':first_name' => $first,
+      ':last_name' => $last,
+    ]);
+
+    return self::getProfile($pdo, $userId);
+  }
+
+  public static function updatePrimaryRole(PDO $pdo, int $userId): void
+  {
+    $snap = self::getAuthSnapshot($pdo, $userId);
+    $role = $snap['roles'][0] ?? 'user';
+    $st = $pdo->prepare('UPDATE users SET role = :role, updated_at = NOW() WHERE id = :id');
+    $st->execute([':role' => $role, ':id' => $userId]);
   }
 
   public static function getPhone(PDO $pdo, int $userId): ?string
@@ -175,7 +210,7 @@ final class UserRepository
    */
   public static function listUsers(PDO $pdo): array
   {
-    $sql = "SELECT u.id, u.login, u.email, u.phone, u.is_blocked, u.created_at,
+    $sql = "SELECT u.id, u.login, u.email, u.phone, u.role AS db_role, u.is_blocked, u.created_at,
             COALESCE(string_agg(
               r.code,
               ',' ORDER BY CASE r.code

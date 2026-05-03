@@ -153,4 +153,29 @@ final class AuthController
 
     Response::json($profile);
   }
+
+  public static function updateMe(AuthContext $auth): void
+  {
+    if ($auth->isGuest()) {
+      Response::json(['error' => 'Unauthorized'], 401);
+    }
+    Permissions::require($auth, 'profile.read');
+
+    $body = Response::readJsonBody();
+    $email = trim((string)($body['email'] ?? ''));
+    $phone = trim((string)($body['phone'] ?? ''));
+    $fio = trim((string)($body['fio'] ?? ''));
+
+    if ($email === '' || $fio === '') {
+      Response::json(['error' => 'validation', 'fields' => ['email' => 'required', 'fio' => 'required']], 422);
+    }
+
+    $pdo = Db::pdo();
+    $profile = UserRepository::updateProfile($pdo, (int)$auth->userId, $email, $phone, $fio);
+    if ($profile === null) {
+      Response::json(['error' => 'Not Found'], 404);
+    }
+
+    Response::json($profile);
+  }
 }

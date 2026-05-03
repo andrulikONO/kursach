@@ -19,6 +19,7 @@ import RegisterPage from '../views/RegisterPage.vue'
 import ProfilePage from '../views/ProfilePage.vue'
 import AdminPage from '../views/AdminPage.vue'
 import TicketsPage from '../views/TicketsPage.vue'
+import ChatPage from '../views/ChatPage.vue'
 
 
 export const router = createRouter({
@@ -36,6 +37,7 @@ export const router = createRouter({
     { path: '/login', name: 'login', component: LoginPage },
     { path: '/register', name: 'register', component: RegisterPage },
     { path: '/profile', name: 'profile', component: ProfilePage },
+    { path: '/chat', name: 'chat', component: ChatPage, meta: { requiresAuth: true } },
     { path: '/admin', name: 'admin', component: AdminPage, meta: { requiresAdmin: true } },
 
     { path: '/help', name: 'help', component: HelpPage },
